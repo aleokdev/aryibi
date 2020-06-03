@@ -3,7 +3,7 @@ project(aryibi LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_library(aryibi STATIC src/renderer.cpp src/renderer_types.cpp)
+add_library(aryibi STATIC src/renderer.cpp src/renderer_types.cpp src/sprites.cpp)
 target_include_directories(aryibi PUBLIC include)
 target_include_directories(aryibi PRIVATE src)
 add_subdirectory(lib)
