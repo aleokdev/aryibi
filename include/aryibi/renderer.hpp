@@ -209,9 +209,6 @@ public:
     MeshBuilder(MeshBuilder const&);
     MeshBuilder& operator=(MeshBuilder const&);
 
-    /// Resets the meshbuilder's internal state. Does not invalidate any of the meshes created with
-    /// finish().
-    void reset();
     /// Adds a sprite to the mesh.
     /// @param spr The sprite.
     /// @param offset Where to place the sprite, in tile units.
@@ -226,6 +223,7 @@ public:
                     float z_min = std::numeric_limits<float>::min(),
                     float z_max = std::numeric_limits<float>::max());
 
+    /// Returns a mesh with the data added until now and resets the meshbuilder's internal state.
     MeshHandle finish() const;
 
 private:
@@ -269,6 +267,7 @@ constexpr static Color black = 0xFF000000;
 constexpr static Color red = 0xFF0000FF;
 constexpr static Color green = 0xFF00FF00;
 constexpr static Color blue = 0xFFFF0000;
+constexpr static Color white = 0xFFFFFFFF;
 
 } // namespace colors
 

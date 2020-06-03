@@ -78,6 +78,37 @@ Sprite solve_8_directional(TextureChunk const& chunk, direction::Direction dir, 
     return Sprite{chunk.tex, std::vector<Sprite::Piece>{piece}};
 }
 
+Sprite solve_4_directional(TextureChunk const& chunk, direction::Direction dir, aml::Vector2 target_size) {
+    bool is_horizontal =
+        chunk.tex.width() * (chunk.rect.end.x - chunk.rect.start.x) > chunk.tex.height() * (chunk.rect.end.y - chunk.rect.start.y);
+    const auto dir_tex_index = (float)(direction::get_direction_texture_index(dir) / 2);
+    const aml::Vector2 directional_sprite_size = (chunk.rect.end - chunk.rect.start) / 4.f;
+    /* clang-format off */
+    const auto piece = is_horizontal ?
+                       Sprite::Piece{
+                           {
+                               {chunk.rect.start.x + dir_tex_index * directional_sprite_size.x, chunk.rect.start.y},
+                               {chunk.rect.start.x + (dir_tex_index+1) * directional_sprite_size.x, chunk.rect.end.y}
+                           },
+                           {
+                               {0, 0},
+                               target_size
+                           } }
+                                     :
+                       Sprite::Piece{
+                           {
+                               { chunk.rect.start.x, chunk.rect.start.y + dir_tex_index * directional_sprite_size.y},
+                               {chunk.rect.end.x, chunk.rect.start.y + (dir_tex_index+1) * directional_sprite_size.y}
+                           },
+                           {
+                               {0, 0},
+                               target_size
+                           }
+                       };
+    /* clang-format on */
+    return Sprite{chunk.tex, std::vector<Sprite::Piece>{piece}};
+}
+
 Sprite solve_normal(TextureChunk const& chunk, aml::Vector2 target_size) {
     aml::Vector2 tex_start{0, 0};
     aml::Vector2 tex_end{1, 0.5f};

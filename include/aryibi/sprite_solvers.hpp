@@ -9,6 +9,13 @@ namespace aryibi::sprites {
 /// down, down_right, right, up_right, up, up_left, left, down_left
 Sprite solve_8_directional(TextureChunk const&, direction::Direction dir, aml::Vector2 target_size);
 
+/// Solves a 4-directional sprite atlas contained in a texture chunk.
+/// Accepts both horizontally and vertically-stored sprite atlases.
+/// If diagonal directions are given, the algorithm will choose one (implementation-defined).
+/// The sprites must be in this order (left to right or up to down)
+/// down, right, up, left
+Sprite solve_4_directional(TextureChunk const&, direction::Direction dir, aml::Vector2 target_size);
+
 /// Solves a normal tile from a TextureChunk, which literally means "copy the data from this
 /// TextureChunk to a Sprite".
 Sprite solve_normal(TextureChunk const&, aml::Vector2 target_size);

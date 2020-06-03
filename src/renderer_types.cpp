@@ -291,10 +291,6 @@ MeshBuilder& MeshBuilder::operator=(MeshBuilder const& other) {
     return *this;
 }
 
-void MeshBuilder::reset() {
-    p_impl->result.clear();
-}
-
 void MeshBuilder::add_sprite(sprites::Sprite const& spr,
                              aml::Vector3 offset,
                              float vertical_slope,
@@ -377,6 +373,7 @@ MeshHandle MeshBuilder::finish() const {
     glVertexAttribBinding(1, 1);
 
     mesh.p_impl->vertex_count = p_impl->result.size() / impl::sizeof_vertex;
+    p_impl->result.clear();
     return mesh;
 }
 
