@@ -10,8 +10,8 @@ pixel art)
 start_frame and finish_frame update the imgui frame)
 
 Stuff to do:
-- Don't hardcode the usage of GLFW.
-- Remove imgui dependency. Create an api-agnostic UI header/library.
+- Don't hardcode the usage of GLFW. Create an api-agnostic windowing wrapper.
+- Remove imgui dependency. Create an api-agnostic UI wrapper.
 
 The renderer's default implementation uses OpenGL, but if you are a Vulkan (or other API) nerd, you
 are free to implement the interface with your own backend.

@@ -47,9 +47,9 @@ Rect2D Sprite::bounds() const {
     return rect;
 }
 
-Sprite solve_8_directional(TextureChunk const& chunk, direction::Direction dir) {
+Sprite solve_8_directional(TextureChunk const& chunk, direction::Direction dir, aml::Vector2 target_size) {
     bool is_horizontal =
-        (chunk.rect.end.x - chunk.rect.start.x) > (chunk.rect.end.y - chunk.rect.start.y);
+        chunk.tex.width() * (chunk.rect.end.x - chunk.rect.start.x) > chunk.tex.height() * (chunk.rect.end.y - chunk.rect.start.y);
     const auto dir_tex_index = (float)direction::get_direction_texture_index(dir);
     const aml::Vector2 directional_sprite_size = (chunk.rect.end - chunk.rect.start) / 8.f;
     /* clang-format off */
@@ -61,7 +61,7 @@ Sprite solve_8_directional(TextureChunk const& chunk, direction::Direction dir) 
                               },
                               {
                                   {0, 0},
-                                  {1, 1}
+                                  target_size
                               } }
                           :
                           Sprite::Piece{
@@ -71,14 +71,14 @@ Sprite solve_8_directional(TextureChunk const& chunk, direction::Direction dir) 
                               },
                               {
                                   {0, 0},
-                                  {1, 1}
+                                  target_size
                               }
                           };
     /* clang-format on */
     return Sprite{chunk.tex, std::vector<Sprite::Piece>{piece}};
 }
 
-Sprite solve_normal(TextureChunk const& chunk) {
+Sprite solve_normal(TextureChunk const& chunk, aml::Vector2 target_size) {
     aml::Vector2 tex_start{0, 0};
     aml::Vector2 tex_end{1, 0.5f};
     /* clang-format off */
@@ -91,7 +91,7 @@ Sprite solve_normal(TextureChunk const& chunk) {
                           },
                           {
                               {0, 0},
-                              {1, 1}
+                              target_size
                           }
                       }
                   }};

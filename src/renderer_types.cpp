@@ -7,6 +7,7 @@
 #include "opengl/impl_types.hpp"
 #include "aryibi/sprites.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <anton/math/transform.hpp>
 #include <anton/math/math.hpp>
@@ -100,6 +101,10 @@ TextureHandle::from_file_rgba(fs::path const& path, FilteringMethod filter, bool
     TextureHandle tex;
     unsigned char* data = stbi_load(path.generic_string().c_str(), &w, &h, &channels, 4);
 
+    if(!data)
+        // Return empty handle if something went wrong
+        return tex;
+
     tex.init(w, h, ColorType::rgba, filter, data);
 
     stbi_image_free(data);
@@ -125,25 +130,25 @@ TextureHandle TextureHandle::from_file_indexed(fs::path const& path,
             } closest_color;
             float closest_color_distance = 99999999.f;
 
-            u32 raw_original_color;
-            std::memcpy(&raw_original_color, original_data + (x + y * w) * original_bytes_per_pixel,
+            Color raw_original_color;
+            std::memcpy(&raw_original_color.hex_val, original_data + (x + y * w) * original_bytes_per_pixel,
                         sizeof(u32));
-            if (static_cast<float>((raw_original_color >> 24) & 0xFF) == 0) {
+            if (raw_original_color.alpha() == 0) {
                 // Transparent color
                 closest_color = {0, 0};
             } else {
                 for (u8 color = 0; color < palette.colors.size(); ++color) {
                     for (u8 shade = 0; shade < palette.colors[color].shades.size(); ++shade) {
                         aml::Vector4 this_color{
-                            static_cast<float>((palette.colors[color].shades[shade] >> 0u) & 0xFFu),
-                            static_cast<float>((palette.colors[color].shades[shade] >> 8u) & 0xFFu),
-                            static_cast<float>((palette.colors[color].shades[shade] >> 16u) & 0xFFu),
-                            static_cast<float>((palette.colors[color].shades[shade] >> 24u) & 0xFFu)};
+                            static_cast<float>(palette.colors[color].shades[shade].red()),
+                            static_cast<float>(palette.colors[color].shades[shade].green()),
+                            static_cast<float>(palette.colors[color].shades[shade].blue()),
+                            static_cast<float>(palette.colors[color].shades[shade].alpha())};
                         aml::Vector4 original_color{
-                            static_cast<float>((raw_original_color >> 0u) & 0xFFu),
-                            static_cast<float>((raw_original_color >> 8u) & 0xFFu),
-                            static_cast<float>((raw_original_color >> 16u) & 0xFFu),
-                            static_cast<float>((raw_original_color >> 24u) & 0xFFu)};
+                            static_cast<float>(raw_original_color.red()),
+                            static_cast<float>(raw_original_color.green()),
+                            static_cast<float>(raw_original_color.blue()),
+                            static_cast<float>(raw_original_color.alpha())};
                         float color_distance = aml::length(this_color - original_color);
                         if (closest_color_distance > color_distance) {
                             closest_color_distance = color_distance;
@@ -284,6 +289,10 @@ MeshBuilder& MeshBuilder::operator=(MeshBuilder const& other) {
         *p_impl = *other.p_impl;
     }
     return *this;
+}
+
+void MeshBuilder::reset() {
+    p_impl->result.clear();
 }
 
 void MeshBuilder::add_sprite(sprites::Sprite const& spr,

@@ -62,11 +62,12 @@ struct Sprite {
 
 /// Needed for some of the solvers.
 struct Tile8Connections {
-    bool down, down_right, right, up_right, up, up_left, left, down_left;
+    bool down = false, down_right = false, right = false, up_right = false, up = false,
+         up_left = false, left = false, down_left = false;
 };
 /// Needed for some of the solvers.
 struct Tile4Connections {
-    bool down, right, up, left;
+    bool down = false, right = false, up = false, left = false;
 };
 
 } // namespace aryibi::sprites

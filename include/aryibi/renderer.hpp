@@ -4,10 +4,10 @@
 #include <anton/math/vector2.hpp>
 #include <anton/math/vector3.hpp>
 #include <anton/math/vector4.hpp>
-#include <limits>
-#include <vector>
-#include <memory>
 #include <filesystem>
+#include <limits>
+#include <memory>
+#include <vector>
 
 namespace fs = std::filesystem;
 namespace aml = anton::math;
@@ -72,7 +72,9 @@ public:
     /// the following formats: JPEG, PNG, TGA, BMP, PSD, GIF, HDR, PIC and PNM
     /// (Basically all the formats stb_image supports, which you can see in
     /// std_image.h)
-    static TextureHandle from_file_rgba(fs::path const&, FilteringMethod filter, bool flip);
+    static TextureHandle from_file_rgba(fs::path const&,
+                                        FilteringMethod filter = FilteringMethod::point,
+                                        bool flip = false);
     static TextureHandle
     from_file_indexed(fs::path const&, ColorPalette const&, FilteringMethod filter, bool flip);
 
@@ -206,6 +208,10 @@ public:
     ~MeshBuilder();
     MeshBuilder(MeshBuilder const&);
     MeshBuilder& operator=(MeshBuilder const&);
+
+    /// Resets the meshbuilder's internal state. Does not invalidate any of the meshes created with
+    /// finish().
+    void reset();
     /// Adds a sprite to the mesh.
     /// @param spr The sprite.
     /// @param offset Where to place the sprite, in tile units.
@@ -215,8 +221,8 @@ public:
     /// axis per X unit.
     void add_sprite(sprites::Sprite const& spr,
                     aml::Vector3 offset,
-                    float vertical_slope,
-                    float horizontal_slope,
+                    float vertical_slope = 0,
+                    float horizontal_slope = 0,
                     float z_min = std::numeric_limits<float>::min(),
                     float z_max = std::numeric_limits<float>::max());
 
@@ -227,9 +233,46 @@ private:
     std::unique_ptr<impl> p_impl;
 };
 
+/// Represents a RGBA 32-bit color.
+struct Color {
+    constexpr Color() : hex_val(0) {}
+    constexpr Color(u32 hex_val) : hex_val(hex_val) {}
+    constexpr Color(u8 red, u8 blue, u8 green, u8 alpha = 255) :
+        hex_val(red | (green << 8u) | (blue << 16u) | (alpha << 24u)) {}
+    constexpr Color(float red, float blue, float green, float alpha = 1) :
+        hex_val((u32)(red * 255u) | ((u32)(green * 255u) << 8u) | ((u32)(blue * 255u) << 16u) |
+                ((u32)(alpha * 255u) << 24u)) {}
+
+    [[nodiscard]] constexpr u8 red() const noexcept { return hex_val & 0xFFu; }
+    [[nodiscard]] constexpr float fred() const noexcept {
+        return static_cast<float>(hex_val & 0xFFu) / 255.f;
+    }
+    [[nodiscard]] constexpr u8 green() const noexcept { return (hex_val >> 8u) & 0xFFu; }
+    [[nodiscard]] constexpr float fgreen() const noexcept {
+        return static_cast<float>((hex_val >> 8u) & 0xFFu) / 255.f;
+    }
+    [[nodiscard]] constexpr u8 blue() const noexcept { return (hex_val >> 16u) & 0xFFu; }
+    [[nodiscard]] constexpr float fblue() const noexcept {
+        return static_cast<float>((hex_val >> 16u) & 0xFFu) / 255.f;
+    }
+    [[nodiscard]] constexpr u8 alpha() const noexcept { return (hex_val >> 24u) & 0xFFu; }
+    [[nodiscard]] constexpr float falpha() const noexcept {
+        return static_cast<float>((hex_val >> 24u) & 0xFFu) / 255.f;
+    }
+
+    u32 hex_val;
+};
+
+namespace colors {
+
+constexpr static Color black = 0xFF000000;
+constexpr static Color red = 0xFF0000FF;
+constexpr static Color green = 0xFF00FF00;
+constexpr static Color blue = 0xFFFF0000;
+
+} // namespace colors
+
 struct ColorPalette {
-    // RGBA 32-bit color
-    using Color = u32;
     struct ColorShades {
         /// The shades of this color. First element should be the darkest one and
         /// last one should be the brightest one.
@@ -265,7 +308,7 @@ public:
 
     Framebuffer get_window_framebuffer();
 
-    void start_frame();
+    void start_frame(Color clear_color = colors::black);
     void finish_frame();
 
 private:

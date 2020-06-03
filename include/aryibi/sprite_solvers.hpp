@@ -7,11 +7,11 @@ namespace aryibi::sprites {
 /// Accepts both horizontally and vertically-stored sprite atlases.
 /// The sprites must be in this order (left to right or up to down)
 /// down, down_right, right, up_right, up, up_left, left, down_left
-Sprite solve_8_directional(TextureChunk const&, direction::Direction dir);
+Sprite solve_8_directional(TextureChunk const&, direction::Direction dir, aml::Vector2 target_size);
 
 /// Solves a normal tile from a TextureChunk, which literally means "copy the data from this
 /// TextureChunk to a Sprite".
-Sprite solve_normal(TextureChunk const&);
+Sprite solve_normal(TextureChunk const&, aml::Vector2 target_size);
 
 /// Solves a RPGMaker A2 autotile from a set of 8 connections (Depicting what the tile is connected
 /// to).

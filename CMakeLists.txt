@@ -7,3 +7,5 @@ add_library(aryibi STATIC src/renderer.cpp src/renderer_types.cpp src/sprites.cp
 target_include_directories(aryibi PUBLIC include)
 target_include_directories(aryibi PRIVATE src)
 add_subdirectory(lib)
+add_subdirectory(assets)
+add_subdirectory(example)

@@ -52,7 +52,7 @@ ShaderHandle Renderer::lit_paletted_shader() const {
   return p_impl->lit_pal_shader;
 }
 
-void Renderer::start_frame() {
+void Renderer::start_frame(Color clear_color) {
   // Start the ImGui frame
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
@@ -61,7 +61,7 @@ void Renderer::start_frame() {
   int display_w, display_h;
   glfwGetFramebufferSize(window, &display_w, &display_h);
   glViewport(0, 0, display_w, display_h);
-  glClearColor(0, 0, 0, 1);
+  glClearColor(clear_color.fred(), clear_color.fgreen(), clear_color.fblue(), clear_color.falpha());
   glClear(GL_COLOR_BUFFER_BIT);
   glClear(GL_DEPTH_BUFFER_BIT);
 }
