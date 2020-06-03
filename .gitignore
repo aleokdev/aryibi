@@ -1,0 +1,7 @@
+build/
+out/
+release/
+.idea/
+windows-build/
+.vs/
+CMakeSettings.json
