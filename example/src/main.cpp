@@ -65,6 +65,9 @@ static void debug_callback(GLenum const source,
               << stringify_source(source) << "]: " << message << std::endl;
 }
 
+namespace rnd = aryibi::renderer;
+namespace spr = aryibi::sprites;
+
 namespace {
 
 std::unique_ptr<aryibi::renderer::Renderer> renderer;
@@ -113,101 +116,120 @@ bool init() {
     return true;
 }
 
+struct CommonDemoData {
+    rnd::TextureHandle tiles_tex, directional_8_tex;
+    spr::TextureChunk rpgmaker_a2_example_chunk, directional_8_example_chunk;
+    rnd::MeshHandle rpgmaker_a2_full_mesh, directional_8_full_mesh;
+    rnd::MeshBuilder builder;
+};
+
+void sprite_types_demo(CommonDemoData& c) {
+    static auto directional_8_direction = spr::direction::dir_down;
+    static spr::Tile8Connections rpgmaker_a2_example_connections;
+    const double time = glfwGetTime();
+    const float normalized_sin = (aml::sin(time) + 1.f) / 2.f;
+    const float normalized_cos = (aml::cos(time) + 1.f) / 2.f;
+    const auto clear_color = rnd::Color(normalized_sin, normalized_cos,
+                             aml::max(0.f, 1.f - normalized_sin - normalized_cos), 1);
+    renderer->start_frame(clear_color);
+    rnd::DrawCmdList cmd_list;
+    cmd_list.camera = {{0, 0, 0}, 32};
+    rnd::DrawCmd rpgmaker_a2_full_mesh_draw_command{
+        c.tiles_tex, c.rpgmaker_a2_full_mesh, renderer->lit_shader(), {{-3, -1.5, 0}}};
+    cmd_list.commands.emplace_back(rpgmaker_a2_full_mesh_draw_command);
+    rnd::DrawCmd directional_8_full_mesh_draw_command{
+        c.directional_8_tex, c.directional_8_full_mesh, renderer->unlit_shader(), {{-8, 3, 0}}};
+    cmd_list.commands.emplace_back(directional_8_full_mesh_draw_command);
+
+    c.builder.add_sprite(
+        spr::solve_rpgmaker_a2(c.rpgmaker_a2_example_chunk, rpgmaker_a2_example_connections),
+        {0, 0, 0});
+    auto rpgmaker_a2_tile_mesh = c.builder.finish();
+    c.builder.reset();
+    rnd::DrawCmd rpgmaker_a2_tile_mesh_draw_command{
+        c.tiles_tex, rpgmaker_a2_tile_mesh, renderer->unlit_shader(), {{-normalized_sin * 2.f, -.5, .5f}}, true};
+    cmd_list.commands.emplace_back(rpgmaker_a2_tile_mesh_draw_command);
+
+    c.builder.add_sprite(
+        spr::solve_8_directional(c.directional_8_example_chunk, directional_8_direction, {5,5}),
+        {0, 0, 0});
+    auto directional_8_sprite_mesh = c.builder.finish();
+    c.builder.reset();
+    rnd::DrawCmd directional_8_tile_mesh_draw_command{
+        c.directional_8_tex, directional_8_sprite_mesh, renderer->unlit_shader(), {{0, -7.f, 0}}};
+    cmd_list.commands.emplace_back(directional_8_tile_mesh_draw_command);
+
+    renderer->draw(cmd_list, renderer->get_window_framebuffer());
+    rpgmaker_a2_tile_mesh.unload();
+    directional_8_sprite_mesh.unload();
+
+    renderer->finish_frame();
+
+    rpgmaker_a2_example_connections.down_left =
+        glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_RELEASE;
+    rpgmaker_a2_example_connections.down = glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_RELEASE;
+    rpgmaker_a2_example_connections.down_right =
+        glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_RELEASE;
+    rpgmaker_a2_example_connections.left = glfwGetKey(window, GLFW_KEY_KP_4) == GLFW_RELEASE;
+    rpgmaker_a2_example_connections.right = glfwGetKey(window, GLFW_KEY_KP_6) == GLFW_RELEASE;
+    rpgmaker_a2_example_connections.up_left = glfwGetKey(window, GLFW_KEY_KP_7) == GLFW_RELEASE;
+    rpgmaker_a2_example_connections.up = glfwGetKey(window, GLFW_KEY_KP_8) == GLFW_RELEASE;
+    rpgmaker_a2_example_connections.up_right =
+        glfwGetKey(window, GLFW_KEY_KP_9) == GLFW_RELEASE;
+
+    std::map<spr::direction::Direction, spr::direction::Direction> directional_8_next_dir = {
+        {spr::direction::dir_down_left, spr::direction::dir_down},
+        {spr::direction::dir_down, spr::direction::dir_down_right},
+        {spr::direction::dir_down_right, spr::direction::dir_right},
+        {spr::direction::dir_right, spr::direction::dir_up_right},
+        {spr::direction::dir_up_right, spr::direction::dir_up},
+        {spr::direction::dir_up, spr::direction::dir_up_left},
+        {spr::direction::dir_up_left, spr::direction::dir_left},
+        {spr::direction::dir_left, spr::direction::dir_down_left},
+    };
+    static double last_direction_change_time = time;
+    if(time > last_direction_change_time + 0.15) {
+        directional_8_direction = directional_8_next_dir[directional_8_direction];
+        last_direction_change_time = time;
+    }
+}
+
 } // namespace
 
 int main() {
     if (!init())
         return -1;
 
-    namespace rnd = aryibi::renderer;
-    namespace spr = aryibi::sprites;
-    const auto tiles_tex = rnd::TextureHandle::from_file_rgba("assets/tiles_packed.png");
-    assert(tiles_tex.exists());
-    const auto directional_8_tex = rnd::TextureHandle::from_file_rgba("assets/pato_dando_vueltas.png");
-    assert(directional_8_tex.exists());
-    const auto rpgmaker_a2_example_chunk =
-        spr::TextureChunk{tiles_tex, {{0, 0}, {1.f / 4.f, 1.f / 2.f}}};
-    const auto directional_8_example_chunk =
-        spr::TextureChunk::full(directional_8_tex);
+    CommonDemoData common_data;
+
+    common_data.tiles_tex = rnd::TextureHandle::from_file_rgba("assets/tiles_packed.png");
+    assert(common_data.tiles_tex.exists());
+    common_data.directional_8_tex = rnd::TextureHandle::from_file_rgba("assets/pato_dando_vueltas.png");
+    assert(common_data.directional_8_tex.exists());
+    common_data.rpgmaker_a2_example_chunk =
+        spr::TextureChunk{common_data.tiles_tex, {{0, 0}, {1.f / 4.f, 1.f / 2.f}}};
+    common_data.directional_8_example_chunk =
+        spr::TextureChunk::full(common_data.directional_8_tex);
 
     rnd::MeshBuilder builder;
-    builder.add_sprite(spr::solve_normal(rpgmaker_a2_example_chunk, {2, 3}), {0, 0, 0});
-    auto rpgmaker_a2_full_mesh = builder.finish();
+    builder.add_sprite(spr::solve_normal(common_data.rpgmaker_a2_example_chunk, {2, 3}), {0, 0, 0});
+    common_data.rpgmaker_a2_full_mesh = builder.finish();
     builder.reset();
-    builder.add_sprite(spr::solve_normal(directional_8_example_chunk, {16, 2}), {0, 0, 0});
-    auto directional_8_full_mesh = builder.finish();
+    builder.add_sprite(spr::solve_normal(common_data.directional_8_example_chunk, {16, 2}), {0, 0, 0});
+    common_data.directional_8_full_mesh = builder.finish();
 
-    rnd::Color clear_color;
-    spr::Tile8Connections rpgmaker_a2_example_connections{};
+    enum class Demo {
+        sprite_types
+    } demo = Demo::sprite_types;
     auto direction = spr::direction::dir_down;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        double time = glfwGetTime();
-        float normalized_sin = (aml::sin(time) + 1.f) / 2.f;
-        float normalized_cos = (aml::cos(time) + 1.f) / 2.f;
-        clear_color = rnd::Color(normalized_sin, normalized_cos,
-                                 aml::max(0.f, 1.f - normalized_sin - normalized_cos), 1);
-        renderer->start_frame(clear_color);
-        rnd::DrawCmdList cmd_list;
-        cmd_list.camera = {{0, 0, 0}, 32};
-        rnd::DrawCmd rpgmaker_a2_full_mesh_draw_command{
-            tiles_tex, rpgmaker_a2_full_mesh, renderer->lit_shader(), {{-3, -1.5, 0}}};
-        cmd_list.commands.emplace_back(rpgmaker_a2_full_mesh_draw_command);
-        rnd::DrawCmd directional_8_full_mesh_draw_command{
-            directional_8_tex, directional_8_full_mesh, renderer->unlit_shader(), {{-8, 3, 0}}};
-        cmd_list.commands.emplace_back(directional_8_full_mesh_draw_command);
 
-        builder.add_sprite(
-            spr::solve_rpgmaker_a2(rpgmaker_a2_example_chunk, rpgmaker_a2_example_connections),
-            {0, 0, 0});
-        auto rpgmaker_a2_tile_mesh = builder.finish();
-        builder.reset();
-        rnd::DrawCmd rpgmaker_a2_tile_mesh_draw_command{
-            tiles_tex, rpgmaker_a2_tile_mesh, renderer->unlit_shader(), {{-normalized_sin * 2.f, -.5, .5f}}, true};
-        cmd_list.commands.emplace_back(rpgmaker_a2_tile_mesh_draw_command);
-
-        builder.add_sprite(
-            spr::solve_8_directional(directional_8_example_chunk, direction, {5,5}),
-            {0, 0, 0});
-        auto directional_8_sprite_mesh = builder.finish();
-        builder.reset();
-        rnd::DrawCmd directional_8_tile_mesh_draw_command{
-            directional_8_tex, directional_8_sprite_mesh, renderer->unlit_shader(), {{0, -7.f, 0}}};
-        cmd_list.commands.emplace_back(directional_8_tile_mesh_draw_command);
-
-        renderer->draw(cmd_list, renderer->get_window_framebuffer());
-        rpgmaker_a2_tile_mesh.unload();
-        directional_8_sprite_mesh.unload();
-
-        renderer->finish_frame();
-
-        rpgmaker_a2_example_connections.down_left =
-            glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_RELEASE;
-        rpgmaker_a2_example_connections.down = glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_RELEASE;
-        rpgmaker_a2_example_connections.down_right =
-            glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_RELEASE;
-        rpgmaker_a2_example_connections.left = glfwGetKey(window, GLFW_KEY_KP_4) == GLFW_RELEASE;
-        rpgmaker_a2_example_connections.right = glfwGetKey(window, GLFW_KEY_KP_6) == GLFW_RELEASE;
-        rpgmaker_a2_example_connections.up_left = glfwGetKey(window, GLFW_KEY_KP_7) == GLFW_RELEASE;
-        rpgmaker_a2_example_connections.up = glfwGetKey(window, GLFW_KEY_KP_8) == GLFW_RELEASE;
-        rpgmaker_a2_example_connections.up_right =
-            glfwGetKey(window, GLFW_KEY_KP_9) == GLFW_RELEASE;
-
-        std::map<spr::direction::Direction, spr::direction::Direction> directional_8_next_dir = {
-            {spr::direction::dir_down_left, spr::direction::dir_down},
-            {spr::direction::dir_down, spr::direction::dir_down_right},
-            {spr::direction::dir_down_right, spr::direction::dir_right},
-            {spr::direction::dir_right, spr::direction::dir_up_right},
-            {spr::direction::dir_up_right, spr::direction::dir_up},
-            {spr::direction::dir_up, spr::direction::dir_up_left},
-            {spr::direction::dir_up_left, spr::direction::dir_left},
-            {spr::direction::dir_left, spr::direction::dir_down_left},
-        };
-        static double last_direction_change_time = time;
-        if(time > last_direction_change_time + 0.15) {
-            direction = directional_8_next_dir[direction];
-            last_direction_change_time = time;
+        switch(demo) {
+            case Demo::sprite_types:
+                sprite_types_demo(common_data);
+                break;
         }
     }
 }
