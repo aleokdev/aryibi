@@ -4,6 +4,7 @@
 #include <anton/math/vector2.hpp>
 #include <anton/math/vector3.hpp>
 #include <anton/math/vector4.hpp>
+#include <anton/math/matrix4.hpp>
 #include <filesystem>
 #include <limits>
 #include <memory>
@@ -178,59 +179,6 @@ private:
     std::unique_ptr<impl> p_impl;
 };
 
-struct Transform {
-    aml::Vector3 position;
-};
-
-struct Camera {
-    aml::Vector3 position;
-    /// How big is a single mesh unit on the screen.
-    float unit_size = 1;
-    bool center_view = true;
-};
-
-struct DrawCmd {
-    TextureHandle texture;
-    MeshHandle mesh;
-    ShaderHandle shader;
-    Transform transform;
-    bool cast_shadows = false;
-};
-
-struct DrawCmdList {
-    Camera camera;
-    std::vector<DrawCmd> commands;
-};
-
-class MeshBuilder {
-public:
-    MeshBuilder();
-    ~MeshBuilder();
-    MeshBuilder(MeshBuilder const&);
-    MeshBuilder& operator=(MeshBuilder const&);
-
-    /// Adds a sprite to the mesh.
-    /// @param spr The sprite.
-    /// @param offset Where to place the sprite, in tile units.
-    /// @param vertical_slope How many tile units to distort the sprite in the Z
-    /// axis per Y unit.
-    /// @param horizontal_slope How many tile units to distort the sprite in the Z
-    /// axis per X unit.
-    void add_sprite(sprites::Sprite const& spr,
-                    aml::Vector3 offset,
-                    float vertical_slope = 0,
-                    float horizontal_slope = 0,
-                    float z_min = std::numeric_limits<float>::min(),
-                    float z_max = std::numeric_limits<float>::max());
-
-    /// Returns a mesh with the data added until now and resets the meshbuilder's internal state.
-    MeshHandle finish() const;
-
-private:
-    struct impl;
-    std::unique_ptr<impl> p_impl;
-};
-
 /// Represents a RGBA 32-bit color.
 struct Color {
     constexpr Color() : hex_val(0) {}
@@ -270,6 +218,84 @@ constexpr static Color blue = 0xFFFF0000;
 constexpr static Color white = 0xFFFFFFFF;
 
 } // namespace colors
+
+struct Transform {
+    aml::Vector3 position;
+};
+
+struct Camera {
+    aml::Vector3 position;
+    /// How big is a single mesh unit on the screen.
+    float unit_size = 1;
+    bool center_view = true;
+};
+
+struct DrawCmd {
+    TextureHandle texture;
+    MeshHandle mesh;
+    ShaderHandle shader;
+    Transform transform;
+    bool cast_shadows = false;
+};
+
+struct Light {
+private:
+    friend class Renderer;
+    /// The position within the light atlas, in UV coordinates.
+    mutable aml::Vector2 light_atlas_pos;
+    /// The size of this light's tile in the atlas.
+    mutable float light_atlas_size;
+    mutable aml::Matrix4 matrix;
+};
+
+struct DirectionalLight : Light {
+    aml::Vector3 rotation;
+    Color color;
+    float intensity;
+};
+
+struct PointLight : Light {
+    aml::Vector3 position;
+    float radius;
+    Color color;
+    float intensity;
+};
+
+struct DrawCmdList {
+    Camera camera;
+    std::vector<DrawCmd> commands;
+    std::vector<DirectionalLight> directional_lights;
+    std::vector<PointLight> point_lights;
+};
+
+class MeshBuilder {
+public:
+    MeshBuilder();
+    ~MeshBuilder();
+    MeshBuilder(MeshBuilder const&);
+    MeshBuilder& operator=(MeshBuilder const&);
+
+    /// Adds a sprite to the mesh.
+    /// @param spr The sprite.
+    /// @param offset Where to place the sprite, in tile units.
+    /// @param vertical_slope How many tile units to distort the sprite in the Z
+    /// axis per Y unit.
+    /// @param horizontal_slope How many tile units to distort the sprite in the Z
+    /// axis per X unit.
+    void add_sprite(sprites::Sprite const& spr,
+                    aml::Vector3 offset,
+                    float vertical_slope = 0,
+                    float horizontal_slope = 0,
+                    float z_min = std::numeric_limits<float>::min(),
+                    float z_max = std::numeric_limits<float>::max());
+
+    /// Returns a mesh with the data added until now and resets the meshbuilder's internal state.
+    MeshHandle finish() const;
+
+private:
+    struct impl;
+    std::unique_ptr<impl> p_impl;
+};
 
 struct ColorPalette {
     struct ColorShades {

@@ -225,8 +225,21 @@ void lighting_demo(CommonDemoData& c) {
     renderer->start_frame(rnd::colors::white);
     rnd::DrawCmdList cmd_list;
     cmd_list.camera = {{0, 0, 0}, 32};
+    rnd::DirectionalLight directional_light;
+    directional_light.color = rnd::colors::blue;
+    directional_light.rotation = {-aml::pi / 5.f, 0, -aml::pi / 5.f};
+    directional_light.intensity = 1;
+    cmd_list.directional_lights.emplace_back(directional_light);
+    directional_light.color = rnd::colors::red;
+    directional_light.rotation = {-aml::pi / 5.f, 0, aml::pi / 5.f};
+    directional_light.intensity = 1;
+    cmd_list.directional_lights.emplace_back(directional_light);
+    //directional_light.color = rnd::colors::green;
+    //directional_light.rotation = {-aml::pi / 3.f, 0, aml::pi / 3.f};
+    //directional_light.intensity = 1;
+    //cmd_list.directional_lights.emplace_back(directional_light);
     rnd::DrawCmd ground_draw_command{
-        c.colors_tex, ground_mesh, renderer->lit_shader(), {{-10, -10, 0}}};
+        c.colors_tex, ground_mesh, renderer->lit_shader(), {{-10, -10, 0}}, true};
     cmd_list.commands.emplace_back(ground_draw_command);
 
     for (int x = 0; x < 10; ++x) {

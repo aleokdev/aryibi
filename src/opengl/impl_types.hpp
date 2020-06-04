@@ -53,6 +53,8 @@ struct Renderer::impl {
     TextureHandle palette_texture;
 
     Framebuffer window_framebuffer;
+
+    unsigned int lights_ubo;
 };
 
 }
