@@ -34,7 +34,8 @@ layout(std140, binding = 5) uniform Lights {
     uint directionalLightCount;                                 // 4    // 480
     PointLight pointLights[MAX_POINT_LIGHTS];                   // 2240 // 496
     uint pointLightCount;                                       // 4    // 2736
-                                                                        // 2752
+    vec3 ambientLightColor;                                     // 12   // 2752
+                                                                        // 2768
 } lights;
 
 in VS_OUT {
@@ -58,23 +59,26 @@ float ShadowCalculation(vec2 lightAtlasPos, float lightAtlasSize, vec4 fragPosLi
 
     float f_shadow = 0.0;
     vec2 texelSize = 1.0 / textureSize(shadow, 0);
-    for (int x = -1; x <= 1; ++x)
+    for (int x = -2; x <= 2; ++x)
     {
-        for (int y = -1; y <= 1; ++y)
+        for (int y = -2; y <= 2; ++y)
         {
-            float pcfDepth = texture(shadow, projCoords2D + vec2(x, y) * texelSize).r;
+            float pcfDepth = texture(shadow, projCoords2D + vec2(x, y) * texelSize * 5.0).r;
             f_shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
         }
     }
-    f_shadow /= 9.0;
+    f_shadow /= 25.0;
     return f_shadow;
 }
 
 void main() {
-    vec3 light = vec3(0);
+    vec3 light = lights.ambientLightColor;
     for (int directional_i = 0; directional_i < lights.directionalLightCount; ++directional_i) {
         vec4 FragPosLightSpace = lights.directionalLights[directional_i].lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
-        light += lights.directionalLights[directional_i].color.rgb *
+        vec3 light_forward = normalize(lights.directionalLights[directional_i].lightSpaceMatrix[2].xyz);
+        // Assume our normal is always facing the camera
+        vec3 this_normal = vec3(0, 0, -1);
+        light += dot(this_normal, light_forward) * lights.directionalLights[directional_i].color.rgb * lights.directionalLights[directional_i].color.a *
             (1.0 - ShadowCalculation(lights.directionalLights[directional_i].lightAtlasPos.xy,
             lights.directionalLights[directional_i].lightAtlasPos.z, FragPosLightSpace));
     }

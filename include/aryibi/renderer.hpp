@@ -266,6 +266,7 @@ struct DrawCmdList {
     std::vector<DrawCmd> commands;
     std::vector<DirectionalLight> directional_lights;
     std::vector<PointLight> point_lights;
+    Color ambient_light_color = colors::black;
 };
 
 class MeshBuilder {

@@ -40,7 +40,7 @@ Renderer::Renderer(GLFWwindow* _w) : window(_w), p_impl(std::make_unique<impl>()
              TextureHandle::FilteringMethod::point);
     p_impl->shadow_depth_fb = Framebuffer(tex);
 
-    constexpr u64 lights_ubo_aligned_size = 2752;
+    constexpr u64 lights_ubo_aligned_size = 2768;
     glGenBuffers(1, &p_impl->lights_ubo);
     glBindBuffer(GL_UNIFORM_BUFFER, p_impl->lights_ubo);
     glBufferData(GL_UNIFORM_BUFFER, lights_ubo_aligned_size, nullptr, GL_DYNAMIC_DRAW);
@@ -147,6 +147,9 @@ void Renderer::draw(DrawCmdList const& draw_commands, Framebuffer const& output_
 
     const u32 point_lights_count = draw_commands.point_lights.size();
     glBufferSubData(GL_UNIFORM_BUFFER, 2736, 4, &point_lights_count);
+    aml::Vector3 ambient_light_color{draw_commands.ambient_light_color.fred(), draw_commands.ambient_light_color.fgreen(),
+                                     draw_commands.ambient_light_color.fblue()};
+    glBufferSubData(GL_UNIFORM_BUFFER, 2752, 12, &ambient_light_color.x);
 
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 

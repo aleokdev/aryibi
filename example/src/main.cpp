@@ -218,11 +218,13 @@ void lighting_demo(CommonDemoData& c) {
             (float)y / (float)renderer->get_window_framebuffer().texture().height() * 2.f - 1.f
         };
     }
+    ndc_mouse_pos.x *= aml::half_pi;
 
     renderer->start_frame(rnd::colors::white);
     rnd::DrawCmdList cmd_list;
     cmd_list.camera = {{0, 0, 0}, 32};
-    rnd::DirectionalLight directional_light;
+    cmd_list.ambient_light_color = rnd::Color(0xFF240504);
+    rnd::DirectionalLight directional_light;/*
     directional_light.color = rnd::colors::blue;
     directional_light.rotation = {-aml::pi / 5.f, 0, -aml::pi / 5.f};
     directional_light.intensity = 1;
@@ -230,11 +232,15 @@ void lighting_demo(CommonDemoData& c) {
     directional_light.color = rnd::colors::red;
     directional_light.rotation = {aml::pi / 2.f * ndc_mouse_pos.x, 0, aml::pi / 2.f * ndc_mouse_pos.y};
     directional_light.intensity = 1;
+    cmd_list.directional_lights.emplace_back(directional_light);*/
+    directional_light.color = rnd::colors::white; // rnd::Color(0xFF13B8FD);
+    directional_light.rotation = {ndc_mouse_pos.x, 0, 0.5f};
+    directional_light.intensity = 0.5f;
     cmd_list.directional_lights.emplace_back(directional_light);
-    directional_light.color = rnd::colors::green;
-    directional_light.rotation = {-aml::pi / 6.f, 0, aml::pi / 6.f};
-    directional_light.intensity = 1;
+    directional_light.rotation = {ndc_mouse_pos.x, 0, -0.5f};
+    directional_light.intensity = 0.5f;
     cmd_list.directional_lights.emplace_back(directional_light);
+
     rnd::DrawCmd ground_draw_command{
         c.colors_tex, ground_mesh, renderer->lit_shader(), {{-10, -10, 0}}, true};
     cmd_list.commands.emplace_back(ground_draw_command);
