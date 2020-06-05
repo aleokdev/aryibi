@@ -71,19 +71,20 @@ float ShadowCalculation(vec2 lightAtlasPos, float lightAtlasSize, vec4 fragPosLi
 }
 
 void main() {
-
-    float f_shadow = 1.0;
+    vec3 light = vec3(0);
     for (int directional_i = 0; directional_i < lights.directionalLightCount; ++directional_i) {
         vec4 FragPosLightSpace = lights.directionalLights[directional_i].lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
-        f_shadow -= 1.0 - ShadowCalculation(lights.directionalLights[directional_i].lightAtlasPos.xy, lights.directionalLights[directional_i].lightAtlasPos.z, FragPosLightSpace);
+        light += lights.directionalLights[directional_i].color.rgb *
+            (1.0 - ShadowCalculation(lights.directionalLights[directional_i].lightAtlasPos.xy,
+            lights.directionalLights[directional_i].lightAtlasPos.z, FragPosLightSpace));
     }
     for (int point_i = 0; point_i < lights.pointLightCount; ++point_i) {
         vec4 FragPosLightSpace = lights.pointLights[point_i].lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
-        f_shadow -= 1.0 - ShadowCalculation(lights.pointLights[point_i].lightAtlasPos.xy, lights.pointLights[point_i].lightAtlasPos.z, FragPosLightSpace);
+        light += lights.pointLights[point_i].color.rgb *
+        (1.0 - ShadowCalculation(lights.pointLights[point_i].lightAtlasPos.xy,
+        lights.pointLights[point_i].lightAtlasPos.z, FragPosLightSpace));
     }
-    f_shadow = max(f_shadow, 0.0);
-    float shadow_force = 0.2;
-    FragColor = texture(tile, fs_in.TexCoords).rgba - vec4(vec3(f_shadow), 0) * shadow_force;
+    FragColor = texture(tile, fs_in.TexCoords).rgba * vec4(light, 1.0);
     if (texture(tile, fs_in.TexCoords).a == 0) { gl_FragDepth = 99999; return; }
 
     gl_FragDepth = gl_FragCoord.z;
