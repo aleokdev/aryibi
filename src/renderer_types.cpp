@@ -12,10 +12,10 @@
 #include <anton/math/transform.hpp>
 #include <anton/math/math.hpp>
 #include <anton/math/vector4.hpp>
+#include "util/aryibi_assert.hpp"
 
 #include <memory>
 #include <cstring>
-#include <cassert>
 #include <filesystem>
 #include <fstream>
 
@@ -24,20 +24,33 @@ namespace fs = std::filesystem;
 namespace aryibi::renderer {
 
 TextureHandle::TextureHandle() : p_impl(std::make_unique<impl>()) {}
-TextureHandle::~TextureHandle() = default;
+TextureHandle::~TextureHandle() {
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    if (p_impl->handle == 0 || glfwGetCurrentContext() == nullptr)
+        return;
+    ARYIBI_ASSERT(impl::handle_ref_count[p_impl->handle] != 1,
+                  "All handles to a texture were destroyed without unloading them first!!");
+    impl::handle_ref_count[p_impl->handle]--;
+#endif
+}
 TextureHandle::TextureHandle(TextureHandle const& other) : p_impl(std::make_unique<impl>()) {
     *p_impl = *other.p_impl;
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    impl::handle_ref_count[p_impl->handle]++;
+#endif
 }
 TextureHandle& TextureHandle::operator=(TextureHandle const& other) {
     if (this != &other) {
         *p_impl = *other.p_impl;
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+        impl::handle_ref_count[p_impl->handle]++;
+#endif
     }
     return *this;
 }
 
 ImTextureID TextureHandle::imgui_id() const {
-    // Make sure the texture exists.
-    assert(exists());
+    ARYIBI_ASSERT(exists(), "Called imgui_id() with a texture that doesn't exist!");
     return reinterpret_cast<void*>(p_impl->handle);
 }
 bool TextureHandle::exists() const { return p_impl->handle != 0; }
@@ -52,8 +65,7 @@ bool operator==(TextureHandle const& a, TextureHandle const& b) {
 
 void TextureHandle::init(
     u32 width, u32 height, ColorType type, FilteringMethod filter, const void* data) {
-    // Remember to call unload() first if you want to reload the texture with different parameters.
-    assert(!exists());
+    ARYIBI_ASSERT(!exists(), "Called init(...) without calling unload() first!");
     glGenTextures(1, (u32*)&p_impl->handle);
     glBindTexture(GL_TEXTURE_2D, p_impl->handle);
 
@@ -71,10 +83,10 @@ void TextureHandle::init(
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
             break;
         case (ColorType::depth):
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT,
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, width, height, 0, GL_DEPTH_COMPONENT,
                          GL_FLOAT, data);
             break;
-        default: assert(false && "Unknown ColorType");
+        default: ARYIBI_ASSERT(false, "Unknown ColorType! (Implementation not finished?)");
     }
     switch (filter) {
         case FilteringMethod::point:
@@ -86,6 +98,7 @@ void TextureHandle::init(
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             glGenerateMipmap(GL_TEXTURE_2D);
             break;
+        default: ARYIBI_ASSERT(false, "Unknown FilteringMethod! (Implementation not finished?)");
     }
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -93,6 +106,10 @@ void TextureHandle::init(
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     float border_color[4] = {1, 1, 1, 1};
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
+
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    impl::handle_ref_count[p_impl->handle] = 1;
+#endif
 }
 TextureHandle
 TextureHandle::from_file_rgba(fs::path const& path, FilteringMethod filter, bool flip) {
@@ -101,7 +118,7 @@ TextureHandle::from_file_rgba(fs::path const& path, FilteringMethod filter, bool
     TextureHandle tex;
     unsigned char* data = stbi_load(path.generic_string().c_str(), &w, &h, &channels, 4);
 
-    if(!data)
+    if (!data)
         // Return empty handle if something went wrong
         return tex;
 
@@ -131,8 +148,8 @@ TextureHandle TextureHandle::from_file_indexed(fs::path const& path,
             float closest_color_distance = 99999999.f;
 
             Color raw_original_color;
-            std::memcpy(&raw_original_color.hex_val, original_data + (x + y * w) * original_bytes_per_pixel,
-                        sizeof(u32));
+            std::memcpy(&raw_original_color.hex_val,
+                        original_data + (x + y * w) * original_bytes_per_pixel, sizeof(u32));
             if (raw_original_color.alpha() == 0) {
                 // Transparent color
                 closest_color = {0, 0};
@@ -144,11 +161,10 @@ TextureHandle TextureHandle::from_file_indexed(fs::path const& path,
                             static_cast<float>(palette.colors[color].shades[shade].green()),
                             static_cast<float>(palette.colors[color].shades[shade].blue()),
                             static_cast<float>(palette.colors[color].shades[shade].alpha())};
-                        aml::Vector4 original_color{
-                            static_cast<float>(raw_original_color.red()),
-                            static_cast<float>(raw_original_color.green()),
-                            static_cast<float>(raw_original_color.blue()),
-                            static_cast<float>(raw_original_color.alpha())};
+                        aml::Vector4 original_color{static_cast<float>(raw_original_color.red()),
+                                                    static_cast<float>(raw_original_color.green()),
+                                                    static_cast<float>(raw_original_color.blue()),
+                                                    static_cast<float>(raw_original_color.alpha())};
                         float color_distance = aml::length(this_color - original_color);
                         if (closest_color_distance > color_distance) {
                             closest_color_distance = color_distance;
@@ -178,27 +194,47 @@ TextureHandle TextureHandle::from_file_indexed(fs::path const& path,
 void TextureHandle::unload() {
     // glDeleteTextures ignores 0s (not created textures)
     glDeleteTextures(1, &p_impl->handle);
+
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    impl::handle_ref_count[p_impl->handle] = 0;
+#endif
+
     p_impl->handle = 0;
 }
 
 MeshHandle::MeshHandle() : p_impl(std::make_unique<impl>()) {}
-MeshHandle::~MeshHandle() = default;
+MeshHandle::~MeshHandle() {
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    if (p_impl->vao == 0 || glfwGetCurrentContext() == nullptr)
+        return;
+    ARYIBI_ASSERT(impl::handle_ref_count[p_impl->vao] != 1,
+                  "All handles to a mesh were destroyed without unloading them first!!");
+    impl::handle_ref_count[p_impl->vao]--;
+#endif
+}
 MeshHandle::MeshHandle(MeshHandle const& other) : p_impl(std::make_unique<impl>()) {
     *p_impl = *other.p_impl;
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    impl::handle_ref_count[p_impl->vao]++;
+#endif
 }
 MeshHandle& MeshHandle::operator=(MeshHandle const& other) {
     if (this != &other) {
         *p_impl = *other.p_impl;
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+        impl::handle_ref_count[p_impl->vao]++;
+#endif
     }
     return *this;
 }
 
 bool MeshHandle::exists() const {
-    /// Only vao or vbo exist, but not both at once? Internal error!!
-    assert((bool)(p_impl->vao) ^ (bool)(p_impl->vbo));
+    ARYIBI_ASSERT((bool)(p_impl->vao) ^ (bool)(p_impl->vbo),
+                  "[Internal error] Only VAO or VBO exist, but not both at once?");
     return p_impl->vao;
 }
 void MeshHandle::unload() {
+    impl::handle_ref_count[p_impl->vao] = 0;
     // Zeros (non-existent meshes) are silently ignored
     glDeleteVertexArrays(1, &p_impl->vao);
     p_impl->vao = 0;
@@ -373,6 +409,10 @@ MeshHandle MeshBuilder::finish() const {
     glVertexAttribBinding(1, 1);
 
     mesh.p_impl->vertex_count = p_impl->result.size() / impl::sizeof_vertex;
+
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    MeshHandle::impl::handle_ref_count[mesh.p_impl->vao] = 1;
+#endif
     p_impl->result.clear();
     return mesh;
 }
@@ -389,25 +429,51 @@ Framebuffer::Framebuffer(TextureHandle const& texture) : p_impl(std::make_unique
 Framebuffer::Framebuffer(Framebuffer const& other) : p_impl(std::make_unique<impl>()) {
     p_impl->handle = other.p_impl->handle;
     p_impl->tex = other.p_impl->tex;
+
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    impl::handle_ref_count[p_impl->handle]++;
+#endif
 }
+
+Framebuffer::~Framebuffer() {
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    if (p_impl->handle == -1 || p_impl->handle == 0 || glfwGetCurrentContext() == nullptr)
+        return;
+    ARYIBI_ASSERT(impl::handle_ref_count[p_impl->handle] != 1,
+                  "All handles to a framebuffer were destroyed without unloading them first!!");
+    impl::handle_ref_count[p_impl->handle]--;
+#endif
+}
+
 Framebuffer& Framebuffer::operator=(Framebuffer const& other) {
     if (&other == this)
         return *this;
 
     p_impl->handle = other.p_impl->handle;
     p_impl->tex = other.p_impl->tex;
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    impl::handle_ref_count[p_impl->handle]++;
+#endif
 
     return *this;
 }
 
 void Framebuffer::impl::create_handle() {
-    if (exists())
+    if (exists()) {
         glDeleteFramebuffers(1, &handle);
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+        impl::handle_ref_count[handle]--;
+#endif
+    }
     glCreateFramebuffers(1, &handle);
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    impl::handle_ref_count[handle] = 1;
+#endif
 }
 
 void Framebuffer::impl::bind_texture() {
-    assert(exists());
+    ARYIBI_ASSERT(exists(),
+                  "[Internal error] Called impl::bind_texture with non-existent framebuffer?");
     glBindFramebuffer(GL_FRAMEBUFFER, handle);
     switch (tex.color_type()) {
         case TextureHandle::ColorType::rgba:
@@ -429,7 +495,7 @@ bool Framebuffer::impl::exists() const { return handle != static_cast<u32>(-1); 
 bool Framebuffer::exists() const { return p_impl->exists(); }
 
 void Framebuffer::resize(u32 width, u32 height) {
-    assert(exists());
+    ARYIBI_ASSERT(exists(), "Tried to resize non-existent framebuffer!");
     auto& tex = p_impl->tex;
     const auto prev_color_type = tex.color_type();
     const auto prev_filter_type = tex.filter();
@@ -440,14 +506,16 @@ void Framebuffer::resize(u32 width, u32 height) {
 
 TextureHandle const& Framebuffer::texture() const { return p_impl->tex; }
 
-Framebuffer::~Framebuffer() = default;
-
 void Framebuffer::unload() {
     if (glfwGetCurrentContext() == nullptr)
         return;
     p_impl->tex.unload();
-    if (p_impl->handle != static_cast<unsigned int>(-1))
+    if (p_impl->handle != static_cast<unsigned int>(-1)) {
         glDeleteFramebuffers(1, &p_impl->handle);
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+        impl::handle_ref_count[p_impl->handle] = 0;
+#endif
+    }
 }
 
 } // namespace aryibi::renderer

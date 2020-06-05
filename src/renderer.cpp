@@ -193,18 +193,18 @@ void Renderer::draw(DrawCmdList const& draw_commands, Framebuffer const& output_
 
         glUniform1i(cmd.shader.p_impl->tile_tex_location,
                     0); // Set tile sampler2D to GL_TEXTURE0
-        glUniform1i(cmd.shader.p_impl->shadow_tex_location,
-                    1); // Set shadow sampler2D to GL_TEXTURE1
-        glUniform1i(cmd.shader.p_impl->palette_tex_location,
-                    2); // Set palette sampler2D to GL_TEXTURE2
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, cmd.texture.p_impl->handle);
         glBindBufferBase(GL_UNIFORM_BUFFER, 5, p_impl->lights_ubo);
         if (is_lit) {
+            glUniform1i(cmd.shader.p_impl->shadow_tex_location,
+                        1); // Set shadow sampler2D to GL_TEXTURE1
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, p_impl->shadow_depth_fb.texture().p_impl->handle);
         }
         if (is_paletted) {
+            glUniform1i(cmd.shader.p_impl->palette_tex_location,
+                        2); // Set palette sampler2D to GL_TEXTURE2
             glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, p_impl->palette_texture.p_impl->handle);
         }
@@ -254,6 +254,14 @@ void Renderer::set_palette(ColorPalette const& palette) {
                                  TextureHandle::ColorType::rgba,
                                  TextureHandle::FilteringMethod::point, palette_texture_data);
     delete[] palette_texture_data;
+}
+
+void Renderer::set_shadow_resolution(u32 width, u32 height) {
+    p_impl->shadow_depth_fb.resize(width, height);
+}
+
+aml::Vector2 Renderer::get_shadow_resolution() const {
+    return {(float)p_impl->shadow_depth_fb.texture().width(), (float)p_impl->shadow_depth_fb.texture().height()};
 }
 
 } // namespace aryibi::renderer

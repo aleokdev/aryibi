@@ -13,12 +13,18 @@ struct TextureHandle::impl {
     ColorType color_type;
     FilteringMethod filter;
     u32 handle = 0;
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    static inline std::unordered_map<u32, u32> handle_ref_count;
+#endif
 };
 
 struct MeshHandle::impl {
     u32 vbo = 0;
     u32 vao = 0;
     u32 vertex_count;
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    static inline std::unordered_map<u32, u32> handle_ref_count;
+#endif
 };
 
 struct ShaderHandle::impl {
@@ -42,6 +48,10 @@ struct Framebuffer::impl {
     [[nodiscard]] bool exists() const;
     void create_handle();
     void bind_texture();
+
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
+    static inline std::unordered_map<u32, u32> handle_ref_count;
+#endif
 };
 
 struct Renderer::impl {

@@ -112,6 +112,7 @@ bool init() {
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     renderer = std::make_unique<aryibi::renderer::Renderer>(window);
+    renderer->set_shadow_resolution(4096, 4096);
 
     return true;
 }
@@ -133,6 +134,8 @@ void sprite_types_demo(CommonDemoData& c) {
     const auto clear_color = rnd::Color(normalized_sin, normalized_cos,
                                         aml::max(0.f, 1.f - normalized_sin - normalized_cos), 1);
     renderer->start_frame(clear_color);
+    ImGui::ShowMetricsWindow();
+
     rnd::DrawCmdList cmd_list;
     cmd_list.camera = {{0, 0, 0}, 32};
     rnd::DrawCmd rpgmaker_a2_full_mesh_draw_command{
@@ -177,6 +180,7 @@ void sprite_types_demo(CommonDemoData& c) {
     renderer->draw(cmd_list, renderer->get_window_framebuffer());
     rpgmaker_a2_tile_mesh.unload();
     directional_8_sprite_mesh.unload();
+    directional_4_sprite_mesh.unload();
 
     renderer->finish_frame();
 
@@ -221,6 +225,15 @@ void lighting_demo(CommonDemoData& c) {
     const double time = glfwGetTime();
     const float normalized_sin = (aml::sin(time) + 1.f) / 2.f;
     const float normalized_cos = (aml::cos(time) + 1.f) / 2.f;
+    aml::Vector2 ndc_mouse_pos;
+    {
+        double x, y;
+        glfwGetCursorPos(window, &x, &y);
+        ndc_mouse_pos = {
+            (float)x / (float)renderer->get_window_framebuffer().texture().width() * 2.f - 1.f,
+            (float)y / (float)renderer->get_window_framebuffer().texture().height() * 2.f - 1.f
+        };
+    }
 
     renderer->start_frame(rnd::colors::white);
     rnd::DrawCmdList cmd_list;
@@ -231,13 +244,13 @@ void lighting_demo(CommonDemoData& c) {
     directional_light.intensity = 1;
     cmd_list.directional_lights.emplace_back(directional_light);
     directional_light.color = rnd::colors::red;
-    directional_light.rotation = {-aml::pi / 5.f, 0, aml::pi / 5.f};
+    directional_light.rotation = {aml::pi / 2.f * ndc_mouse_pos.x, 0, aml::pi / 2.f * ndc_mouse_pos.y};
     directional_light.intensity = 1;
     cmd_list.directional_lights.emplace_back(directional_light);
-    //directional_light.color = rnd::colors::green;
-    //directional_light.rotation = {-aml::pi / 3.f, 0, aml::pi / 3.f};
-    //directional_light.intensity = 1;
-    //cmd_list.directional_lights.emplace_back(directional_light);
+    directional_light.color = rnd::colors::green;
+    directional_light.rotation = {-aml::pi / 6.f, 0, aml::pi / 6.f};
+    directional_light.intensity = 1;
+    cmd_list.directional_lights.emplace_back(directional_light);
     rnd::DrawCmd ground_draw_command{
         c.colors_tex, ground_mesh, renderer->lit_shader(), {{-10, -10, 0}}, true};
     cmd_list.commands.emplace_back(ground_draw_command);
@@ -319,4 +332,6 @@ int main() {
         }
         pressed_space_before = pressed_space_now;
     }
+
+    glfwTerminate();
 }
