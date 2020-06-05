@@ -139,7 +139,7 @@ void sprite_types_demo(CommonDemoData& c) {
     rnd::DrawCmdList cmd_list;
     cmd_list.camera = {{0, 0, 0}, 32};
     rnd::DrawCmd rpgmaker_a2_full_mesh_draw_command{
-        c.tiles_tex, c.rpgmaker_a2_full_mesh, renderer->lit_shader(), {{-3, -1.5, 0}}};
+        c.tiles_tex, c.rpgmaker_a2_full_mesh, renderer->unlit_shader(), {{-3, -1.5, 0}}};
     cmd_list.commands.emplace_back(rpgmaker_a2_full_mesh_draw_command);
     rnd::DrawCmd directional_8_full_mesh_draw_command{
         c.directional_8_tex, c.directional_8_full_mesh, renderer->unlit_shader(), {{-8, 3.5, 0}}};
@@ -155,8 +155,7 @@ void sprite_types_demo(CommonDemoData& c) {
     rnd::DrawCmd rpgmaker_a2_tile_mesh_draw_command{c.tiles_tex,
                                                     rpgmaker_a2_tile_mesh,
                                                     renderer->unlit_shader(),
-                                                    {{-normalized_sin * 2.f, -.5, .5f}},
-                                                    true};
+                                                    {{0, -.5, .5f}}};
     cmd_list.commands.emplace_back(rpgmaker_a2_tile_mesh_draw_command);
 
     c.builder.add_sprite(
