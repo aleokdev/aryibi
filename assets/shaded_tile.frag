@@ -77,14 +77,23 @@ void main() {
         vec4 FragPosLightSpace = lights.directionalLights[directional_i].lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
         vec3 light_forward = normalize(lights.directionalLights[directional_i].lightSpaceMatrix[2].xyz);
         // Assume our normal is always facing the camera
-        vec3 this_normal = vec3(0, 0, -1);
-        light += dot(this_normal, light_forward) * lights.directionalLights[directional_i].color.rgb * lights.directionalLights[directional_i].color.a *
+        vec3 this_normal = vec3(0, 0, 1);
+        float light_strength = dot(this_normal, -light_forward) * lights.directionalLights[directional_i].color.a;
+        light_strength = max(light_strength, 0.0);
+        light += light_strength * lights.directionalLights[directional_i].color.rgb *
             (1.0 - ShadowCalculation(lights.directionalLights[directional_i].lightAtlasPos.xy,
             lights.directionalLights[directional_i].lightAtlasPos.z, FragPosLightSpace));
     }
     for (int point_i = 0; point_i < lights.pointLightCount; ++point_i) {
         vec4 FragPosLightSpace = lights.pointLights[point_i].lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
-        light += lights.pointLights[point_i].color.rgb *
+        vec3 light_pos = lights.pointLights[point_i].lightSpaceMatrix[3].xyz;
+        vec3 light_dir_vec = normalize(light_pos - fs_in.FragPos);
+        // Assume our normal is always facing the camera
+        vec3 this_normal = vec3(0, 0, 1);
+        float light_strength = dot(this_normal, light_dir_vec) * lights.pointLights[point_i].color.a;
+        light_strength *= min(1.0, (lights.pointLights[point_i].radius - distance(light_pos, fs_in.FragPos)) / lights.pointLights[point_i].radius);
+        light_strength = max(light_strength, 0.0);
+        light += light_strength * lights.pointLights[point_i].color.rgb *
         (1.0 - ShadowCalculation(lights.pointLights[point_i].lightAtlasPos.xy,
         lights.pointLights[point_i].lightAtlasPos.z, FragPosLightSpace));
     }

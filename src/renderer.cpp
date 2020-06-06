@@ -14,6 +14,7 @@
 #include <anton/math/vector4.hpp>
 #include <anton/math/transform.hpp>
 #include <anton/math/vector2.hpp>
+#include "util/aryibi_assert.hpp"
 
 #include <iostream>
 #include <memory>
@@ -92,25 +93,37 @@ void Renderer::draw(DrawCmdList const& draw_commands, Framebuffer const& output_
     aml::Vector2 camera_view_size_in_tiles{
         (float)output_fb.texture().width() / draw_commands.camera.unit_size,
         (float)output_fb.texture().height() / draw_commands.camera.unit_size};
+    // Position the camera. Since this is right-handed, the camera will look at -Z, which is exactly
+    // what we want. The camera should be placed at +Z and looking at -Z so that objects that have
+    // higher Z are closer to the camera.
     aml::Matrix4 view = aml::inverse(aml::translate(draw_commands.camera.position));
     aml::Matrix4 proj;
     if (draw_commands.camera.center_view) {
         proj = aml::orthographic_rh(
             -camera_view_size_in_tiles.x / 2.f, camera_view_size_in_tiles.x / 2.f,
-            -camera_view_size_in_tiles.y / 2.f, camera_view_size_in_tiles.y / 2.f, -20.0f, 20.0f);
+            -camera_view_size_in_tiles.y / 2.f, camera_view_size_in_tiles.y / 2.f, 0.0f, 20.0f);
     } else {
         proj = aml::orthographic_rh(0, camera_view_size_in_tiles.x, -camera_view_size_in_tiles.y, 0,
-                                    -20.0f, 20.0f);
+                                    0.0f, 20.0f);
     }
+    aml::Matrix4 point_light_proj = aml::perspective_rh(aml::pi / 3.f * 2.f, 1, 1.f, 10.f);
 
     /// The light depth texture is divided into NxN tiles, each one representing a light.
     /// This constant represents N.
-    const int light_atlas_tiles = aml::ceil(aml::sqrt(draw_commands.directional_lights.size() + draw_commands.point_lights.size()));
+    const int light_atlas_tiles = aml::ceil(
+        aml::sqrt(draw_commands.directional_lights.size() + draw_commands.point_lights.size()));
 
     /// Update light UBO data
-    constexpr u64 directional_light_size_aligned = 96;
     glBindBuffer(GL_UNIFORM_BUFFER, p_impl->lights_ubo);
+    const u32 directional_lights_count = draw_commands.directional_lights.size();
+    glBufferSubData(GL_UNIFORM_BUFFER, 480, 4, &directional_lights_count);
+
+    const u32 point_lights_count = draw_commands.point_lights.size();
+    glBufferSubData(GL_UNIFORM_BUFFER, 2736, 4, &point_lights_count);
+    constexpr u64 directional_light_size_aligned = 96;
     u64 directional_light_i = 0;
+    ARYIBI_ASSERT(draw_commands.directional_lights.size() <= 5,
+                  "Maximum directional light count (5) surpassed!")
     for (const auto& directional_light : draw_commands.directional_lights) {
         aml::Vector4 color{directional_light.color.fred(), directional_light.color.fgreen(),
                            directional_light.color.fblue(), directional_light.intensity};
@@ -123,8 +136,10 @@ void Renderer::draw(DrawCmdList const& draw_commands, Framebuffer const& output_
         aml::Matrix4 lightView = aml::translate(draw_commands.camera.position);
         // We want the light to be rotated on the Z and X axis to make it seem there's
         // some directionality to it.
-        lightView *=
-            aml::rotate_z(directional_light.rotation.z) * aml::rotate_y(directional_light.rotation.y) *  aml::rotate_x(directional_light.rotation.x) * aml::scale(2.f);
+        // We rotate the light 180º in the Y axis so that it faces -X (The scene).
+        lightView *= aml::rotate_z(directional_light.rotation.z) *
+                     aml::rotate_y(directional_light.rotation.y) *
+                     aml::rotate_x(directional_light.rotation.x);
         lightView = aml::inverse(lightView);
         directional_light.matrix = proj * lightView;
         static_assert(sizeof(aml::Matrix4) == 64);
@@ -132,22 +147,63 @@ void Renderer::draw(DrawCmdList const& draw_commands, Framebuffer const& output_
         glBufferSubData(GL_UNIFORM_BUFFER,
                         directional_light_i * directional_light_size_aligned + 16, 64,
                         directional_light.matrix.get_raw());
-        directional_light.light_atlas_pos = {(float)(directional_light_i % light_atlas_tiles) / (float)light_atlas_tiles,
-                                             (float)(directional_light_i / light_atlas_tiles) / (float)light_atlas_tiles};
+        directional_light.light_atlas_pos = {
+            (float)(directional_light_i % light_atlas_tiles) / (float)light_atlas_tiles,
+            (float)(directional_light_i / light_atlas_tiles) / (float)light_atlas_tiles};
         directional_light.light_atlas_size = 1.f / (float)light_atlas_tiles;
-        glBufferSubData(GL_UNIFORM_BUFFER, directional_light_i * directional_light_size_aligned + 80,
-                        8, &directional_light.light_atlas_pos.x);
-        glBufferSubData(GL_UNIFORM_BUFFER, directional_light_i * directional_light_size_aligned + 88,
-                        4, &directional_light.light_atlas_size);
+        glBufferSubData(GL_UNIFORM_BUFFER,
+                        directional_light_i * directional_light_size_aligned + 80, 8,
+                        &directional_light.light_atlas_pos.x);
+        glBufferSubData(GL_UNIFORM_BUFFER,
+                        directional_light_i * directional_light_size_aligned + 88, 4,
+                        &directional_light.light_atlas_size);
         ++directional_light_i;
     }
 
-    const u32 directional_lights_count = draw_commands.directional_lights.size();
-    glBufferSubData(GL_UNIFORM_BUFFER, 480, 4, &directional_lights_count);
+    ARYIBI_ASSERT(draw_commands.directional_lights.size() <= 20,
+                  "Maximum point light count (20) surpassed!");
+    constexpr u64 point_light_size_aligned = 112;
+    constexpr u64 point_lights_offset = 496;
+    u64 point_light_i = 0;
+    for (const auto& point_light : draw_commands.point_lights) {
+        aml::Vector4 color{point_light.color.fred(), point_light.color.fgreen(),
+                           point_light.color.fblue(), point_light.intensity};
+        static_assert(sizeof(aml::Vector4) == 16);
+        glBufferSubData(GL_UNIFORM_BUFFER,
+                        point_lights_offset + point_light_i * point_light_size_aligned + 0, 16,
+                        &color.r);
+        glBufferSubData(GL_UNIFORM_BUFFER,
+                        point_lights_offset + point_light_i * point_light_size_aligned + 16, 4,
+                        &point_light.radius);
 
-    const u32 point_lights_count = draw_commands.point_lights.size();
-    glBufferSubData(GL_UNIFORM_BUFFER, 2736, 4, &point_lights_count);
-    aml::Vector3 ambient_light_color{draw_commands.ambient_light_color.fred(), draw_commands.ambient_light_color.fgreen(),
+        // To create the light view, we position the light as if it were a camera and
+        // then invert the matrix.
+        // Point lights directly look at the scene, with no rotation because it's already looking at -Z (towards the scene).
+        aml::Matrix4 lightView =
+            aml::translate(point_light.position);
+        lightView = aml::inverse(lightView);
+        point_light.matrix = point_light_proj * lightView;
+        static_assert(sizeof(aml::Matrix4) == 64);
+        static_assert(sizeof(aml::Vector2) == 8);
+        glBufferSubData(GL_UNIFORM_BUFFER,
+                        point_lights_offset + point_light_i * point_light_size_aligned + 32, 64,
+                        point_light.matrix.get_raw());
+        point_light.light_atlas_pos = {
+            (float)((directional_lights_count + point_light_i) % light_atlas_tiles) /
+                (float)light_atlas_tiles,
+            (float)((directional_lights_count + point_light_i) / light_atlas_tiles) /
+                (float)light_atlas_tiles};
+        point_light.light_atlas_size = 1.f / (float)light_atlas_tiles;
+        glBufferSubData(GL_UNIFORM_BUFFER,
+                        point_lights_offset + point_light_i * point_light_size_aligned + 96, 8,
+                        &point_light.light_atlas_pos.x);
+        glBufferSubData(GL_UNIFORM_BUFFER,
+                        point_lights_offset + point_light_i * point_light_size_aligned + 104, 4,
+                        &point_light.light_atlas_size);
+        ++point_light_i;
+    }
+    aml::Vector3 ambient_light_color{draw_commands.ambient_light_color.fred(),
+                                     draw_commands.ambient_light_color.fgreen(),
                                      draw_commands.ambient_light_color.fblue()};
     glBufferSubData(GL_UNIFORM_BUFFER, 2752, 12, &ambient_light_color.x);
 
@@ -159,14 +215,39 @@ void Renderer::draw(DrawCmdList const& draw_commands, Framebuffer const& output_
     glDepthFunc(GL_LEQUAL);
     glActiveTexture(GL_TEXTURE0);
     int light_index = 0;
-    for(const auto& directional_light : draw_commands.directional_lights) {
-        static const auto light_atlas_pos_location = glGetUniformLocation(p_impl->depth_shader.p_impl->handle, "light_atlas_pos");
-        static const auto light_atlas_size_location = glGetUniformLocation(p_impl->depth_shader.p_impl->handle, "light_atlas_size");
+    for (const auto& directional_light : draw_commands.directional_lights) {
+        static const auto light_atlas_pos_location =
+            glGetUniformLocation(p_impl->depth_shader.p_impl->handle, "light_atlas_pos");
+        static const auto light_atlas_size_location =
+            glGetUniformLocation(p_impl->depth_shader.p_impl->handle, "light_atlas_size");
         glViewport(directional_light.light_atlas_pos.x * p_impl->shadow_depth_fb.texture().width(),
                    directional_light.light_atlas_pos.y * p_impl->shadow_depth_fb.texture().height(),
                    directional_light.light_atlas_size * p_impl->shadow_depth_fb.texture().width(),
                    directional_light.light_atlas_size * p_impl->shadow_depth_fb.texture().height());
         glUniformMatrix4fv(3, 1, GL_FALSE, directional_light.matrix.get_raw()); // Light view matrix
+        for (const auto& cmd : draw_commands.commands) {
+            if (!cmd.cast_shadows)
+                continue;
+            aml::Matrix4 model = aml::translate(cmd.transform.position);
+
+            glBindVertexArray(cmd.mesh.p_impl->vao);
+            glBindTexture(GL_TEXTURE_2D, cmd.texture.p_impl->handle);
+            glUniformMatrix4fv(0, 1, GL_FALSE, model.get_raw()); // Model matrix
+            glDrawArrays(GL_TRIANGLES, 0, cmd.mesh.p_impl->vertex_count);
+
+            ++light_index;
+        }
+    }
+    for (const auto& point_light : draw_commands.point_lights) {
+        static const auto light_atlas_pos_location =
+            glGetUniformLocation(p_impl->depth_shader.p_impl->handle, "light_atlas_pos");
+        static const auto light_atlas_size_location =
+            glGetUniformLocation(p_impl->depth_shader.p_impl->handle, "light_atlas_size");
+        glViewport(point_light.light_atlas_pos.x * p_impl->shadow_depth_fb.texture().width(),
+                   point_light.light_atlas_pos.y * p_impl->shadow_depth_fb.texture().height(),
+                   point_light.light_atlas_size * p_impl->shadow_depth_fb.texture().width(),
+                   point_light.light_atlas_size * p_impl->shadow_depth_fb.texture().height());
+        glUniformMatrix4fv(3, 1, GL_FALSE, point_light.matrix.get_raw()); // Light view matrix
         for (const auto& cmd : draw_commands.commands) {
             if (!cmd.cast_shadows)
                 continue;
@@ -264,7 +345,8 @@ void Renderer::set_shadow_resolution(u32 width, u32 height) {
 }
 
 aml::Vector2 Renderer::get_shadow_resolution() const {
-    return {(float)p_impl->shadow_depth_fb.texture().width(), (float)p_impl->shadow_depth_fb.texture().height()};
+    return {(float)p_impl->shadow_depth_fb.texture().width(),
+            (float)p_impl->shadow_depth_fb.texture().height()};
 }
 
 } // namespace aryibi::renderer
