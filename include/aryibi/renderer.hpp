@@ -291,7 +291,7 @@ public:
                     float z_max = std::numeric_limits<float>::max());
 
     /// Returns a mesh with the data added until now and resets the meshbuilder's internal state.
-    MeshHandle finish() const;
+    [[nodiscard]] MeshHandle finish() const;
 
 private:
     struct impl;

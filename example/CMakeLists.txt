@@ -2,7 +2,10 @@ cmake_minimum_required(VERSION 3.15)
 
 add_executable(aryibi-example src/main.cpp)
 target_link_libraries(aryibi-example PRIVATE aryibi glfw glad imgui)
-target_compile_definitions(aryibi PUBLIC ARYIBI_DETECT_RENDERER_LEAKS)
+if(${CMAKE_BUILD_TYPE} STREQUAL "Debug" OR ${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
+    message(STATUS "Turning on leak detection for aryibi.")
+    target_compile_definitions(aryibi PUBLIC ARYIBI_DETECT_RENDERER_LEAKS)
+endif()
 
 file(GLOB ARYIBI_EXAMPLE_ASSETS assets/*)
 set(ARYIBI_EXAMPLE_BINARY_ASSETS "")

@@ -234,7 +234,9 @@ bool MeshHandle::exists() const {
     return p_impl->vao;
 }
 void MeshHandle::unload() {
+#ifdef ARYIBI_DETECT_RENDERER_LEAKS
     impl::handle_ref_count[p_impl->vao] = 0;
+#endif
     // Zeros (non-existent meshes) are silently ignored
     glDeleteVertexArrays(1, &p_impl->vao);
     p_impl->vao = 0;
