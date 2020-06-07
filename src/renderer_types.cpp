@@ -83,8 +83,8 @@ void TextureHandle::init(
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
             break;
         case (ColorType::depth):
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, width, height, 0, GL_DEPTH_COMPONENT,
-                         GL_FLOAT, data);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, width, height, 0,
+                         GL_DEPTH_COMPONENT, GL_FLOAT, data);
             break;
         default: ARYIBI_ASSERT(false, "Unknown ColorType! (Implementation not finished?)");
     }
@@ -315,7 +315,7 @@ ShaderHandle ShaderHandle::from_file(fs::path const& vert_path, fs::path const& 
     return shader;
 }
 
-MeshBuilder::MeshBuilder() : p_impl(std::make_unique<impl>()) {}
+MeshBuilder::MeshBuilder() : p_impl(std::make_unique<impl>()) { p_impl->result.reserve(256); }
 MeshBuilder::~MeshBuilder() = default;
 MeshBuilder::MeshBuilder(MeshBuilder const& other) : p_impl(std::make_unique<impl>()) {
     *p_impl = *other.p_impl;
@@ -333,10 +333,8 @@ void MeshBuilder::add_sprite(sprites::Sprite const& spr,
                              float horizontal_slope,
                              float z_min,
                              float z_max) {
-    const auto add_piece = [&](sprites::Sprite::Piece const& piece) {
+    const auto add_piece = [&](sprites::Sprite::Piece const& piece, std::size_t base_n) {
         auto& result = p_impl->result;
-        const auto base_n = result.size();
-        result.resize(result.size() + impl::sizeof_quad);
         const sprites::Rect2D pos_rect{
             {piece.destination.start.x + offset.x, piece.destination.start.y + offset.y},
             {piece.destination.end.x + offset.x, piece.destination.end.y + offset.y}};
@@ -383,7 +381,11 @@ void MeshBuilder::add_sprite(sprites::Sprite const& spr,
         /* Y UV 3rd vertex  */ result[base_n + 29] = uv_rect.start.y;
     };
 
-    for (const auto& piece : spr.pieces) { add_piece(piece); }
+    const auto prev_size = p_impl->result.size();
+    p_impl->result.resize(prev_size + spr.pieces.size() * impl::sizeof_quad);
+    for (std::size_t i = 0; i < spr.pieces.size(); ++i) {
+        add_piece(spr.pieces[i], prev_size + i * impl::sizeof_quad);
+    }
 }
 
 MeshHandle MeshBuilder::finish() const {

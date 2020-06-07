@@ -59,13 +59,12 @@ void Renderer::start_frame(Color clear_color) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    int display_w, display_h;
-    glfwGetFramebufferSize(window, &display_w, &display_h);
-    glViewport(0, 0, display_w, display_h);
+    // This is faster than actually querying the framebuffer size since imgui already does it.
+    const auto& io = ImGui::GetIO();
+    glViewport(0, 0, io.DisplaySize.x, io.DisplaySize.y);
     glClearColor(clear_color.fred(), clear_color.fgreen(), clear_color.fblue(),
                  clear_color.falpha());
-    glClear(GL_COLOR_BUFFER_BIT);
-    glClear(GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void Renderer::finish_frame() {

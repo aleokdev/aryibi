@@ -112,7 +112,7 @@ bool init() {
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     renderer = std::make_unique<aryibi::renderer::Renderer>(window);
-    renderer->set_shadow_resolution(4096, 4096);
+    renderer->set_shadow_resolution(2048, 2048);
 
     return true;
 }
@@ -235,21 +235,25 @@ void lighting_demo(CommonDemoData& c) {
         c.colors_tex, ground_mesh, renderer->lit_shader(), {{-20, -20, -0.5f}}, true};
     cmd_list.commands.emplace_back(ground_draw_command);
 
+
     for (int x = 0; x < 10; ++x) {
         for (int y = 0; y < 10; ++y) {
             float z = (aml::sin(time + x + y) + 1.f) / 2.f;
             float w = (aml::cos(time + x + y) + 1.f) / 2.f;
-            rnd::DrawCmd ground_draw_command{
-                c.colors_tex,
-                quad_mesh,
-                renderer->lit_shader(),
-                {{-5.f + (float)x * 1.2f + w, 5.f - (float)y * 1.2f + z, z}},
-                true};
-            cmd_list.commands.emplace_back(ground_draw_command);
+            c.builder.add_sprite(spr::solve_normal(c.green_chunk, {1, 1}), {-5.f + (float)x * 1.2f + w, 5.f - (float)y * 1.2f + z, z});
         }
     }
+    rnd::MeshHandle quads_mesh;
+    rnd::DrawCmd quads_draw_command{
+        c.colors_tex,
+        quads_mesh = c.builder.finish(),
+        renderer->lit_shader(),
+        {{0,0,0}},
+        true};
+    cmd_list.commands.emplace_back(quads_draw_command);
 
     renderer->draw(cmd_list, renderer->get_window_framebuffer());
+    quads_mesh.unload();
     renderer->finish_frame();
 }
 
