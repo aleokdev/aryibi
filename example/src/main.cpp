@@ -121,7 +121,8 @@ struct CommonDemoData {
     rnd::TextureHandle tiles_tex, directional_8_tex, directional_4_tex, colors_tex;
     spr::TextureChunk rpgmaker_a2_example_chunk, directional_8_example_chunk,
         directional_4_example_chunk, red_chunk, green_chunk;
-    rnd::MeshHandle rpgmaker_a2_full_mesh, rpgmaker_a2_all_tiles_mesh, directional_8_full_mesh, directional_4_full_mesh;
+    rnd::MeshHandle rpgmaker_a2_full_mesh, rpgmaker_a2_all_tiles_mesh, directional_8_full_mesh,
+        directional_4_full_mesh;
     rnd::MeshBuilder builder;
 };
 
@@ -147,18 +148,18 @@ void sprite_types_demo(CommonDemoData& c) {
         c.directional_4_tex, c.directional_4_full_mesh, renderer->unlit_shader(), {{-19, 1.5, 0}}};
     cmd_list.commands.emplace_back(directional_4_full_mesh_draw_command);
 
-    rnd::DrawCmd rpgmaker_a2_tile_mesh_draw_command{c.tiles_tex,
-                                                    c.rpgmaker_a2_all_tiles_mesh,
-                                                    renderer->unlit_shader(),
-                                                    {{0, -8, .5f}}};
+    rnd::DrawCmd rpgmaker_a2_tile_mesh_draw_command{
+        c.tiles_tex, c.rpgmaker_a2_all_tiles_mesh, renderer->unlit_shader(), {{0, -8, .5f}}};
     cmd_list.commands.emplace_back(rpgmaker_a2_tile_mesh_draw_command);
 
     c.builder.add_sprite(
         spr::solve_8_directional(c.directional_8_example_chunk, directional_8_direction, {5, 5}),
         {0, 0, 0});
     auto directional_8_sprite_mesh = c.builder.finish();
-    rnd::DrawCmd directional_8_tile_mesh_draw_command{
-        c.directional_8_tex, directional_8_sprite_mesh, renderer->unlit_shader(), {{-15.f, -7.f, 0}}};
+    rnd::DrawCmd directional_8_tile_mesh_draw_command{c.directional_8_tex,
+                                                      directional_8_sprite_mesh,
+                                                      renderer->unlit_shader(),
+                                                      {{-15.f, -7.f, 0}}};
     cmd_list.commands.emplace_back(directional_8_tile_mesh_draw_command);
 
     c.builder.add_sprite(
@@ -196,7 +197,7 @@ void sprite_types_demo(CommonDemoData& c) {
 
 void lighting_demo(CommonDemoData& c) {
     const auto create_ground_mesh = [&c]() -> rnd::MeshHandle {
-        c.builder.add_sprite(spr::solve_normal(c.red_chunk, {20, 20}), {0, 0, 0});
+        c.builder.add_sprite(spr::solve_normal(c.red_chunk, {40, 40}), {0, 0, 0});
         return c.builder.finish();
     };
     const auto create_quad_mesh = [&c]() -> rnd::MeshHandle {
@@ -208,59 +209,42 @@ void lighting_demo(CommonDemoData& c) {
 
     const double time = glfwGetTime();
     const float normalized_sin = (aml::sin(time) + 1.f) / 2.f;
-    const float normalized_cos = (aml::cos(time) + 1.f) / 2.f;
-    aml::Vector2 ndc_mouse_pos;
-    {
-        double x, y;
-        glfwGetCursorPos(window, &x, &y);
-        ndc_mouse_pos = {
-            (float)x / (float)renderer->get_window_framebuffer().texture().width() * 2.f - 1.f,
-            (float)y / (float)renderer->get_window_framebuffer().texture().height() * 2.f - 1.f
-        };
-    }
-    ndc_mouse_pos.x *= aml::half_pi;
 
     renderer->start_frame(rnd::colors::black);
+    ImGui::ShowMetricsWindow();
     rnd::DrawCmdList cmd_list;
-    cmd_list.camera = {{0, 0, 10}, 32};/*
-    cmd_list.ambient_light_color = rnd::Color(0xFF240504);
-    rnd::DirectionalLight directional_light;
-    directional_light.color = rnd::colors::white;
-    directional_light.rotation = {aml::pi/5.f, 0, aml::pi/5.f};
-    directional_light.intensity = 1;
-    cmd_list.directional_lights.emplace_back(directional_light);
-    directional_light.color = rnd::colors::red;
-    directional_light.rotation = {aml::pi / 2.f * ndc_mouse_pos.x, 0, aml::pi / 2.f * ndc_mouse_pos.y};
-    directional_light.intensity = 1;
-    cmd_list.directional_lights.emplace_back(directional_light);
-    directional_light.color = rnd::colors::white; // rnd::Color(0xFF13B8FD);
-    directional_light.rotation = {ndc_mouse_pos.x, 0, 0.5f};
-    directional_light.intensity = 0.5f;
-    cmd_list.directional_lights.emplace_back(directional_light);
-    directional_light.rotation = {ndc_mouse_pos.x, 0, -0.5f};
-    directional_light.intensity = 0.5f;
-    cmd_list.directional_lights.emplace_back(directional_light);*/
+    cmd_list.camera = {{0, 0, 10}, 32};
     rnd::PointLight point_light;
-    point_light.color = rnd::colors::white;
+    point_light.color = rnd::colors::red;
     point_light.radius = 10.f;
-    point_light.intensity = 2.f;
-    point_light.position = {0,0, 5.f};
+    point_light.intensity = 1.f;
+    point_light.position = {-10.f * normalized_sin, 0, 5.f};
+    cmd_list.point_lights.emplace_back(point_light);
+    point_light.color = rnd::colors::blue;
+    point_light.radius = 10.f;
+    point_light.intensity = 1.f;
+    point_light.position = {10.f * normalized_sin, 0, 5.f};
+    cmd_list.point_lights.emplace_back(point_light);
+    point_light.color = rnd::colors::green;
+    point_light.radius = 10.f;
+    point_light.intensity = 1.f;
+    point_light.position = {0, 10.f * normalized_sin, 5.f};
     cmd_list.point_lights.emplace_back(point_light);
 
     rnd::DrawCmd ground_draw_command{
-        c.colors_tex, ground_mesh, renderer->lit_shader(), {{-10, -10, -0.5f}}, true};
+        c.colors_tex, ground_mesh, renderer->lit_shader(), {{-20, -20, -0.5f}}, true};
     cmd_list.commands.emplace_back(ground_draw_command);
 
     for (int x = 0; x < 10; ++x) {
         for (int y = 0; y < 10; ++y) {
             float z = (aml::sin(time + x + y) + 1.f) / 2.f;
             float w = (aml::cos(time + x + y) + 1.f) / 2.f;
-            rnd::DrawCmd ground_draw_command{c.colors_tex,
-                                             quad_mesh,
-                                             renderer->lit_shader(),
-                                             {{-5.f + (float)x * 1.2f + w, 5.f - (float)y * 1.2f + z,
-                                               z}},
-                                             true};
+            rnd::DrawCmd ground_draw_command{
+                c.colors_tex,
+                quad_mesh,
+                renderer->lit_shader(),
+                {{-5.f + (float)x * 1.2f + w, 5.f - (float)y * 1.2f + z, z}},
+                true};
             cmd_list.commands.emplace_back(ground_draw_command);
         }
     }
@@ -308,20 +292,16 @@ int main() {
         spr::solve_normal(common_data.directional_4_example_chunk, {8, 2}), {0, 0, 0});
     common_data.directional_4_full_mesh = common_data.builder.finish();
 
-    for(unsigned int tile_i = 0; tile_i <= 0xFFu; ++tile_i) {
+    for (unsigned int tile_i = 0; tile_i <= 0xFFu; ++tile_i) {
         const float tile_x = tile_i % 16;
         const float tile_y = tile_i / 16;
         common_data.builder.add_sprite(
-            spr::solve_rpgmaker_a2(common_data.rpgmaker_a2_example_chunk, {
-                bool(tile_i & (1u << 0u)),
-                bool(tile_i & (1u << 1u)),
-                bool(tile_i & (1u << 2u)),
-                bool(tile_i & (1u << 3u)),
-                bool(tile_i & (1u << 4u)),
-                bool(tile_i & (1u << 5u)),
-                bool(tile_i & (1u << 6u)),
-                bool(tile_i & (1u << 7u))
-            }), {tile_x, tile_y, 0});
+            spr::solve_rpgmaker_a2(common_data.rpgmaker_a2_example_chunk,
+                                   {bool(tile_i & (1u << 0u)), bool(tile_i & (1u << 1u)),
+                                    bool(tile_i & (1u << 2u)), bool(tile_i & (1u << 3u)),
+                                    bool(tile_i & (1u << 4u)), bool(tile_i & (1u << 5u)),
+                                    bool(tile_i & (1u << 6u)), bool(tile_i & (1u << 7u))}),
+            {tile_x, tile_y, 0});
     }
     common_data.rpgmaker_a2_all_tiles_mesh = common_data.builder.finish();
 
