@@ -20,6 +20,7 @@
 #include <fstream>
 
 namespace fs = std::filesystem;
+namespace aml = anton::math;
 
 namespace aryibi::renderer {
 

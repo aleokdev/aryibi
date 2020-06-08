@@ -7,7 +7,11 @@
 #include <examples/imgui_impl_opengl3.h>
 /* clang-format on */
 
+// This implementation uses GLFW.
+#include "glfw/impl_types.hpp"
+
 #include "aryibi/renderer.hpp"
+#include "aryibi/windowing.hpp"
 #include "opengl/impl_types.hpp"
 
 #include <anton/math/matrix4.hpp>
@@ -20,11 +24,96 @@
 #include <memory>
 #include <cstring> // For memcpy
 
+namespace aml = anton::math;
+
+namespace {
+
+static void debug_callback(GLenum const source,
+                           GLenum const type,
+                           GLuint,
+                           GLenum const severity,
+                           GLsizei,
+                           GLchar const* const message,
+                           void const*) {
+    auto stringify_source = [](GLenum const source) {
+      switch (source) {
+          case GL_DEBUG_SOURCE_API: return u8"API";
+          case GL_DEBUG_SOURCE_APPLICATION: return u8"Application";
+          case GL_DEBUG_SOURCE_SHADER_COMPILER: return u8"Shader Compiler";
+          case GL_DEBUG_SOURCE_WINDOW_SYSTEM: return u8"Window System";
+          case GL_DEBUG_SOURCE_THIRD_PARTY: return u8"Third Party";
+          case GL_DEBUG_SOURCE_OTHER: return u8"Other";
+          default: return "";
+      }
+    };
+
+    auto stringify_type = [](GLenum const type) {
+      switch (type) {
+          case GL_DEBUG_TYPE_ERROR: return u8"Error";
+          case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: return u8"Deprecated Behavior";
+          case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: return u8"Undefined Behavior";
+          case GL_DEBUG_TYPE_PORTABILITY: return u8"Portability";
+          case GL_DEBUG_TYPE_PERFORMANCE: return u8"Performance";
+          case GL_DEBUG_TYPE_MARKER: return u8"Marker";
+          case GL_DEBUG_TYPE_PUSH_GROUP: return u8"Push Group";
+          case GL_DEBUG_TYPE_POP_GROUP: return u8"Pop Group";
+          case GL_DEBUG_TYPE_OTHER: return u8"Other";
+          default: return "";
+      }
+    };
+
+    auto stringify_severity = [](GLenum const severity) {
+      switch (severity) {
+          case GL_DEBUG_SEVERITY_HIGH: return u8"Fatal Error";
+          case GL_DEBUG_SEVERITY_MEDIUM: return u8"Error";
+          case GL_DEBUG_SEVERITY_LOW: return u8"Warning";
+          case GL_DEBUG_SEVERITY_NOTIFICATION: return u8"Note";
+          default: return "";
+      }
+    };
+
+    // Do not send bloat information
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+        return;
+
+    ARYIBI_LOG(("[" + std::string(stringify_severity(severity)) + ":" + stringify_type(type) + " in "
+                   + stringify_source(source) + "]: " + message).c_str());
+
+    ARYIBI_ASSERT(severity != GL_DEBUG_SEVERITY_HIGH, "OpenGL Internal Fatal Error!");
+}
+
+}
+
 namespace aryibi::renderer {
 
-Renderer::~Renderer() = default;
+Renderer::~Renderer() {
+    glfwTerminate();
+}
 
-Renderer::Renderer(GLFWwindow* _w) : window(_w), p_impl(std::make_unique<impl>()) {
+Renderer::Renderer(windowing::WindowHandle _w) : window(_w), p_impl(std::make_unique<impl>()) {
+    ARYIBI_ASSERT(_w.exists(), "Window handle given to renderer isn't valid!");
+
+    // Activate VSync and fix FPS
+    glfwMakeContextCurrent(window.p_impl->handle);
+    glfwSwapInterval(0); // TODO: Change to 1 to enable VSync
+    gladLoadGLLoader((GLADloadproc)&glfwGetProcAddress);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEBUG_OUTPUT);
+    glCullFace(GL_FRONT_AND_BACK);
+
+    glDebugMessageCallback(debug_callback, nullptr);
+
+    // Setup ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    constexpr const char* glsl_version = "#version 450";
+    ImGui_ImplGlfw_InitForOpenGL(window.p_impl->handle, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+
     p_impl->lit_shader =
         ShaderHandle::from_file("assets/shaded_tile.vert", "assets/shaded_tile.frag");
     p_impl->unlit_shader =
@@ -72,12 +161,12 @@ void Renderer::finish_frame() {
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    glfwSwapBuffers(window);
+    glfwSwapBuffers(window.p_impl->handle);
 }
 
 Framebuffer Renderer::get_window_framebuffer() {
     int display_w, display_h;
-    glfwGetFramebufferSize(window, &display_w, &display_h);
+    glfwGetFramebufferSize(window.p_impl->handle, &display_w, &display_h);
     TextureHandle virtual_window_tex;
     virtual_window_tex.p_impl->width = display_w;
     virtual_window_tex.p_impl->height = display_h;
@@ -122,7 +211,7 @@ void Renderer::draw(DrawCmdList const& draw_commands, Framebuffer const& output_
     constexpr u64 directional_light_size_aligned = 96;
     u64 directional_light_i = 0;
     ARYIBI_ASSERT(draw_commands.directional_lights.size() <= 5,
-                  "Maximum directional light count (5) surpassed!")
+                  "Maximum directional light count (5) surpassed!");
     for (const auto& directional_light : draw_commands.directional_lights) {
         aml::Vector4 color{directional_light.color.fred(), directional_light.color.fgreen(),
                            directional_light.color.fblue(), directional_light.intensity};

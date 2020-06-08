@@ -1,17 +1,16 @@
 #ifndef ARYIBI_RENDERER_HPP
 #define ARYIBI_RENDERER_HPP
 
+#include "windowing.hpp"
+
+#include <anton/math/matrix4.hpp>
 #include <anton/math/vector2.hpp>
 #include <anton/math/vector3.hpp>
 #include <anton/math/vector4.hpp>
-#include <anton/math/matrix4.hpp>
 #include <filesystem>
 #include <limits>
 #include <memory>
 #include <vector>
-
-namespace fs = std::filesystem;
-namespace aml = anton::math;
 
 struct GLFWwindow;
 typedef void* ImTextureID;
@@ -73,11 +72,13 @@ public:
     /// the following formats: JPEG, PNG, TGA, BMP, PSD, GIF, HDR, PIC and PNM
     /// (Basically all the formats stb_image supports, which you can see in
     /// std_image.h)
-    static TextureHandle from_file_rgba(fs::path const&,
+    static TextureHandle from_file_rgba(std::filesystem::path const&,
                                         FilteringMethod filter = FilteringMethod::point,
                                         bool flip = false);
-    static TextureHandle
-    from_file_indexed(fs::path const&, ColorPalette const&, FilteringMethod filter, bool flip);
+    static TextureHandle from_file_indexed(std::filesystem::path const&,
+                                           ColorPalette const&,
+                                           FilteringMethod filter,
+                                           bool flip);
 
 private:
     friend class Renderer;
@@ -170,7 +171,8 @@ struct ShaderHandle {
 
     /// Loads a GLSL shader from two paths (One for the fragment shader and
     /// another one for the vertex one)
-    static ShaderHandle from_file(fs::path const& vert_path, fs::path const& frag_path);
+    static ShaderHandle from_file(std::filesystem::path const& vert_path,
+                                  std::filesystem::path const& frag_path);
 
 private:
     friend class Renderer;
@@ -211,6 +213,7 @@ struct Color {
 
 namespace colors {
 
+constexpr static Color transparent = 0x00000000;
 constexpr static Color black = 0xFF000000;
 constexpr static Color red = 0xFF0000FF;
 constexpr static Color green = 0xFF00FF00;
@@ -220,11 +223,11 @@ constexpr static Color white = 0xFFFFFFFF;
 } // namespace colors
 
 struct Transform {
-    aml::Vector3 position;
+    anton::math::Vector3 position;
 };
 
 struct Camera {
-    aml::Vector3 position;
+    anton::math::Vector3 position;
     /// How big is a single mesh unit on the screen.
     float unit_size = 1;
     bool center_view = true;
@@ -242,20 +245,20 @@ struct Light {
 private:
     friend class Renderer;
     /// The position within the light atlas, in UV coordinates.
-    mutable aml::Vector2 light_atlas_pos;
+    mutable anton::math::Vector2 light_atlas_pos;
     /// The size of this light's tile in the atlas.
     mutable float light_atlas_size;
-    mutable aml::Matrix4 matrix;
+    mutable anton::math::Matrix4 matrix;
 };
 
 struct DirectionalLight : Light {
-    aml::Vector3 rotation;
+    anton::math::Vector3 rotation;
     Color color;
     float intensity;
 };
 
 struct PointLight : Light {
-    aml::Vector3 position;
+    anton::math::Vector3 position;
     float radius;
     Color color;
     float intensity;
@@ -284,7 +287,7 @@ public:
     /// @param horizontal_slope How many tile units to distort the sprite in the Z
     /// axis per X unit.
     void add_sprite(sprites::Sprite const& spr,
-                    aml::Vector3 offset,
+                    anton::math::Vector3 offset,
                     float vertical_slope = 0,
                     float horizontal_slope = 0,
                     float z_min = std::numeric_limits<float>::min(),
@@ -312,14 +315,16 @@ struct ColorPalette {
 
 class Renderer {
 public:
-    explicit Renderer(GLFWwindow*);
+    /// Create and initialize a renderer bound to a valid window. No more than one renderer can be
+    /// bound to a single window.
+    explicit Renderer(windowing::WindowHandle parent_window);
     ~Renderer();
 
     void draw(DrawCmdList const& draw_commands, Framebuffer const& output_fb);
-    void clear(Framebuffer& fb, aml::Vector4 color);
+    void clear(Framebuffer& fb, anton::math::Vector4 color);
 
     void set_shadow_resolution(u32 width, u32 height);
-    [[nodiscard]] aml::Vector2 get_shadow_resolution() const;
+    [[nodiscard]] anton::math::Vector2 get_shadow_resolution() const;
     void set_palette(ColorPalette const&);
 
     // Returns the default lit shader. The handle will be valid until the renderer
@@ -338,7 +343,7 @@ public:
     void finish_frame();
 
 private:
-    GLFWwindow* const window;
+    windowing::WindowHandle window;
     struct impl;
     std::unique_ptr<impl> p_impl;
 };

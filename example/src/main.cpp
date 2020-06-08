@@ -1,115 +1,37 @@
-/* clang-format off */
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
-#include <imgui.h>
-#include <examples/imgui_impl_glfw.h>
-#include <examples/imgui_impl_opengl3.h>
-/* clang-format on */
-
 #include <aryibi/renderer.hpp>
 #include <aryibi/sprites.hpp>
+#include <aryibi/windowing.hpp>
 #include <aryibi/sprite_solvers.hpp>
+
+#include <imgui.h>
+
 #include <iostream>
 #include <map>
 
-static void debug_callback(GLenum const source,
-                           GLenum const type,
-                           GLuint,
-                           GLenum const severity,
-                           GLsizei,
-                           GLchar const* const message,
-                           void const*) {
-    auto stringify_source = [](GLenum const source) {
-        switch (source) {
-            case GL_DEBUG_SOURCE_API: return u8"API";
-            case GL_DEBUG_SOURCE_APPLICATION: return u8"Application";
-            case GL_DEBUG_SOURCE_SHADER_COMPILER: return u8"Shader Compiler";
-            case GL_DEBUG_SOURCE_WINDOW_SYSTEM: return u8"Window System";
-            case GL_DEBUG_SOURCE_THIRD_PARTY: return u8"Third Party";
-            case GL_DEBUG_SOURCE_OTHER: return u8"Other";
-            default: return "";
-        }
-    };
-
-    auto stringify_type = [](GLenum const type) {
-        switch (type) {
-            case GL_DEBUG_TYPE_ERROR: return u8"Error";
-            case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: return u8"Deprecated Behavior";
-            case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: return u8"Undefined Behavior";
-            case GL_DEBUG_TYPE_PORTABILITY: return u8"Portability";
-            case GL_DEBUG_TYPE_PERFORMANCE: return u8"Performance";
-            case GL_DEBUG_TYPE_MARKER: return u8"Marker";
-            case GL_DEBUG_TYPE_PUSH_GROUP: return u8"Push Group";
-            case GL_DEBUG_TYPE_POP_GROUP: return u8"Pop Group";
-            case GL_DEBUG_TYPE_OTHER: return u8"Other";
-            default: return "";
-        }
-    };
-
-    auto stringify_severity = [](GLenum const severity) {
-        switch (severity) {
-            case GL_DEBUG_SEVERITY_HIGH: return u8"Fatal Error";
-            case GL_DEBUG_SEVERITY_MEDIUM: return u8"Error";
-            case GL_DEBUG_SEVERITY_LOW: return u8"Warning";
-            case GL_DEBUG_SEVERITY_NOTIFICATION: return u8"Note";
-            default: return "";
-        }
-    };
-
-    // Do not send bloat information
-    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
-        return;
-
-    std::cout << "[" << stringify_severity(severity) << ":" << stringify_type(type) << " in "
-              << stringify_source(source) << "]: " << message << std::endl;
-}
+namespace aml = anton::math;
 
 namespace rnd = aryibi::renderer;
+namespace wnd = aryibi::windowing;
 namespace spr = aryibi::sprites;
 
 namespace {
 
 std::unique_ptr<aryibi::renderer::Renderer> renderer;
-GLFWwindow* window = nullptr;
+wnd::WindowHandle window;
+wnd::InputHandle input;
 
 bool init() {
-    if (!glfwInit()) {
-        std::cerr << "Couldn't init GLFW." << std::endl;
+    window.init(800, 800, "Aryibi example", {{{wnd::WindowHint::transparent_background, true}}});
+    if (!window.exists()) {
+        std::cerr << "Couldn't init the window." << std::endl;
         return false;
     }
 
-    // Use OpenGL 4.5
-    const char* glsl_version = "#version 450";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-    window = glfwCreateWindow(400, 400, "Aryibi example", nullptr, nullptr);
-    if (!window) {
-        std::cerr
-            << "Couldn't create window. Check your GPU drivers, as aryibi requires OpenGL 4.5."
-            << std::endl;
+    input.init(window);
+    if (!input.exists()) {
+        std::cerr << "Couldn't init the input." << std::endl;
         return false;
     }
-
-    // Activate VSync and fix FPS
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(0); // TODO: Change to 1 to enable VSync
-    gladLoadGLLoader((GLADloadproc)&glfwGetProcAddress);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_DEBUG_OUTPUT);
-    glCullFace(GL_FRONT_AND_BACK);
-
-    glDebugMessageCallback(debug_callback, nullptr);
-
-    // Setup ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
 
     renderer = std::make_unique<aryibi::renderer::Renderer>(window);
     renderer->set_shadow_resolution(2048, 2048);
@@ -128,7 +50,7 @@ struct CommonDemoData {
 
 void sprite_types_demo(CommonDemoData& c) {
     static auto directional_8_direction = spr::direction::dir_down;
-    const double time = glfwGetTime();
+    const double time = window.time_since_opened();
     const float normalized_sin = (aml::sin(time) + 1.f) / 2.f;
     const float normalized_cos = (aml::cos(time) + 1.f) / 2.f;
     const auto clear_color = rnd::Color(normalized_sin, normalized_cos,
@@ -197,7 +119,7 @@ void sprite_types_demo(CommonDemoData& c) {
 
 void lighting_demo(CommonDemoData& c) {
     const auto create_ground_mesh = [&c]() -> rnd::MeshHandle {
-        c.builder.add_sprite(spr::solve_normal(c.red_chunk, {40, 40}), {0, 0, 0});
+        c.builder.add_sprite(spr::solve_normal(c.red_chunk, {20, 20}), {0, 0, 0});
         return c.builder.finish();
     };
     const auto create_quad_mesh = [&c]() -> rnd::MeshHandle {
@@ -207,10 +129,10 @@ void lighting_demo(CommonDemoData& c) {
     static const auto ground_mesh = create_ground_mesh();
     static const auto quad_mesh = create_quad_mesh();
 
-    const double time = glfwGetTime();
+    const double time = window.time_since_opened();
     const float normalized_sin = (aml::sin(time) + 1.f) / 2.f;
 
-    renderer->start_frame(rnd::colors::black);
+    renderer->start_frame(rnd::colors::transparent);
     ImGui::ShowMetricsWindow();
     rnd::DrawCmdList cmd_list;
     cmd_list.camera = {{0, 0, 10}, 32};
@@ -232,7 +154,7 @@ void lighting_demo(CommonDemoData& c) {
     cmd_list.point_lights.emplace_back(point_light);
 
     rnd::DrawCmd ground_draw_command{
-        c.colors_tex, ground_mesh, renderer->lit_shader(), {{-20, -20, -0.5f}}, true};
+        c.colors_tex, ground_mesh, renderer->lit_shader(), {{-10, -10, -0.5f}}, true};
     cmd_list.commands.emplace_back(ground_draw_command);
 
 
@@ -311,8 +233,8 @@ int main() {
 
     enum class Demo : anton::u8 { sprite_types, lighting, count } demo = Demo::sprite_types;
 
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
+    while (!window.should_close()) {
+        wnd::poll_events();
 
         switch (demo) {
             case Demo::sprite_types: sprite_types_demo(common_data); break;
@@ -320,8 +242,8 @@ int main() {
             default: break;
         }
 
-        static bool pressed_space_before = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
-        bool pressed_space_now = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
+        static bool pressed_space_before = input.is_pressed(wnd::InputKey::k_SPACE);
+        bool pressed_space_now = input.is_pressed(wnd::InputKey::k_SPACE);
         if (!pressed_space_before && pressed_space_now) {
             demo = (Demo)(((anton::u8)demo) + 1u);
             if (demo == Demo::count)
@@ -330,5 +252,5 @@ int main() {
         pressed_space_before = pressed_space_now;
     }
 
-    glfwTerminate();
+    renderer.reset();
 }

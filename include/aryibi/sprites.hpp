@@ -7,8 +7,8 @@
 namespace aryibi::sprites {
 
 struct Rect2D {
-    aml::Vector2 start;
-    aml::Vector2 end;
+    anton::math::Vector2 start;
+    anton::math::Vector2 end;
 };
 
 namespace direction {
@@ -54,7 +54,7 @@ struct Sprite {
 
     /// Joins the pieces from a sprite to this one and applies an offset to their destination
     /// position.
-    void join_pieces_from(PieceContainer const&, aml::Vector2 destination_offset);
+    void join_pieces_from(PieceContainer const&, anton::math::Vector2 destination_offset);
 
     /// @returns A rect containing all the pieces (destination rects) of the sprite.
     [[nodiscard]] Rect2D bounds() const;

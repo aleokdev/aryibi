@@ -1,6 +1,8 @@
 #include "aryibi/sprites.hpp"
 #include "aryibi/sprite_solvers.hpp"
+
 using namespace anton;
+namespace aml = anton::math;
 
 namespace aryibi::sprites {
 
@@ -47,9 +49,10 @@ Rect2D Sprite::bounds() const {
     return rect;
 }
 
-Sprite solve_8_directional(TextureChunk const& chunk, direction::Direction dir, aml::Vector2 target_size) {
-    bool is_horizontal =
-        chunk.tex.width() * (chunk.rect.end.x - chunk.rect.start.x) > chunk.tex.height() * (chunk.rect.end.y - chunk.rect.start.y);
+Sprite
+solve_8_directional(TextureChunk const& chunk, direction::Direction dir, aml::Vector2 target_size) {
+    bool is_horizontal = chunk.tex.width() * (chunk.rect.end.x - chunk.rect.start.x) >
+                         chunk.tex.height() * (chunk.rect.end.y - chunk.rect.start.y);
     const auto dir_tex_index = (float)direction::get_direction_texture_index(dir);
     const aml::Vector2 directional_sprite_size = (chunk.rect.end - chunk.rect.start) / 8.f;
     /* clang-format off */
@@ -78,9 +81,10 @@ Sprite solve_8_directional(TextureChunk const& chunk, direction::Direction dir, 
     return Sprite{chunk.tex, std::vector<Sprite::Piece>{piece}};
 }
 
-Sprite solve_4_directional(TextureChunk const& chunk, direction::Direction dir, aml::Vector2 target_size) {
-    bool is_horizontal =
-        chunk.tex.width() * (chunk.rect.end.x - chunk.rect.start.x) > chunk.tex.height() * (chunk.rect.end.y - chunk.rect.start.y);
+Sprite
+solve_4_directional(TextureChunk const& chunk, direction::Direction dir, aml::Vector2 target_size) {
+    bool is_horizontal = chunk.tex.width() * (chunk.rect.end.x - chunk.rect.start.x) >
+                         chunk.tex.height() * (chunk.rect.end.y - chunk.rect.start.y);
     const auto dir_tex_index = (float)(direction::get_direction_texture_index(dir) / 2);
     const aml::Vector2 directional_sprite_size = (chunk.rect.end - chunk.rect.start) / 4.f;
     /* clang-format off */
@@ -222,4 +226,4 @@ Sprite solve_rpgmaker_a2(TextureChunk const& tex, Tile8Connections const& connec
     return spr;
 }
 
-} // namespace gnb::sprites
+} // namespace aryibi::sprites
