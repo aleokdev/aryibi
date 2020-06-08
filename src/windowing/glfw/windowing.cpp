@@ -101,4 +101,16 @@ bool InputHandle::is_pressed(InputKey key) {
     return glfwGetKey(p_impl->window, (int)key);
 }
 
+bool InputHandle::is_pressed(MouseButton button) {
+    ARYIBI_ASSERT(exists(), "Tried to get input of input handle that isn't initialized!");
+    return glfwGetMouseButton(p_impl->window, (int)button);
+}
+
+anton::math::Vector2 InputHandle::mouse_pos() {
+    ARYIBI_ASSERT(exists(), "Tried to get input of input handle that isn't initialized!");
+    double x, y;
+    glfwGetCursorPos(p_impl->window, &x, &y);
+    return {(float)x, (float)y};
+}
+
 } // namespace aryibi::windowing

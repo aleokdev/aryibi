@@ -8,11 +8,11 @@
 /* clang-format on */
 
 // This implementation uses GLFW.
-#include "glfw/impl_types.hpp"
+#include "windowing/glfw/impl_types.hpp"
 
 #include "aryibi/renderer.hpp"
 #include "aryibi/windowing.hpp"
-#include "opengl/impl_types.hpp"
+#include "renderer/opengl/impl_types.hpp"
 
 #include <anton/math/matrix4.hpp>
 #include <anton/math/vector4.hpp>

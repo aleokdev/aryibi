@@ -80,7 +80,7 @@ private:
     std::unique_ptr<impl> p_impl;
 };
 
-enum class InputKey : int {
+enum class [[maybe_unused]] InputKey {
     k_SPACE = 32,
     k_APOSTROPHE = 39, // '
     k_COMMA = 44,      // ,
@@ -182,6 +182,17 @@ enum class InputKey : int {
     MAX
 };
 
+enum class [[maybe_unused]] MouseButton {
+    left = 0,
+    right,
+    middle,
+    custom_4,
+    custom_5,
+    custom_6,
+    custom_7,
+    custom_8
+};
+
 class InputHandle {
 public:
     /// Creates a null input handle. This does absolutely nothing - you have to call init() before
@@ -207,8 +218,13 @@ public:
 
     /// @returns True if the key was pressed between now and the last event poll.
     bool is_pressed(InputKey key);
+    /// @returns True if the mouse button was pressed between now and the last event poll.
+    bool is_pressed(MouseButton button);
 
-    // TODO: Add key callbacks
+    /// @returns The mouse position, in pixels.
+    anton::math::Vector2 mouse_pos();
+
+    // TODO: Add key/mouse callbacks
 
 private:
     struct impl;

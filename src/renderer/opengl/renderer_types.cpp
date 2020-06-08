@@ -4,7 +4,7 @@
 /* clang-format on */
 
 #include "aryibi/renderer.hpp"
-#include "opengl/impl_types.hpp"
+#include "renderer/opengl/impl_types.hpp"
 #include "aryibi/sprites.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
