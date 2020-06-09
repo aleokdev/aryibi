@@ -1,6 +1,18 @@
 cmake_minimum_required(VERSION 3.15)
 project(aryibi LANGUAGES C CXX)
 
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" OR ${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
+    option(ARYIBI_DETECT_LEAKS "Detect most of the leaks that happen because of forgetting to unload handles" ON)
+else ()
+    option(ARYIBI_DETECT_LEAKS "Detect most of the leaks that happen because of forgetting to unload handles" OFF)
+endif ()
+
+if (${ARYIBI_DETECT_LEAKS})
+    message(STATUS "[aryibi] Leak detection is ON")
+else ()
+    message(STATUS "[aryibi] Leak detection is OFF")
+endif ()
+
 set(ARYIBI_BACKEND "glfw-opengl" CACHE STRING "The backend to use. Can be: 'glfw-opengl', 'none'. Default: 'glfw-opengl'")
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,7 +25,7 @@ target_include_directories(aryibi PRIVATE src)
 # ARYIBI_REQUIRED_LIBS are the required library targets that must be supplied externally.
 if (ARYIBI_BACKEND STREQUAL "glfw-opengl")
     message(STATUS "[aryibi] Using GLFW + OpenGL backend")
-    message(STATUS "[aryibi] For the stb required library target, create an add_custom_target with an interface
+    message(STATUS "[aryibi] For the stb required library target, create an interface library with an interface
     target_include_directories containing the stb directory.")
     message(STATUS "[aryibi] For the imgui required library target, create an static library that includes the imgui
     directory publicly and has the following sources: imgui/imgui_draw.cpp imgui/imgui_demo.cpp imgui/imgui_widgets.cpp
@@ -35,5 +47,3 @@ foreach (REQUIRED_LIB ${ARYIBI_REQUIRED_LIBS})
 endforeach ()
 
 add_subdirectory(lib)
-add_subdirectory(assets)
-add_subdirectory(example)
