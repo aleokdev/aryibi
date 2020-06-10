@@ -1,4 +1,4 @@
-#version 430 core
+#version 450 core
 
 in vec3 iPos;
 in vec2 iTexCoords;

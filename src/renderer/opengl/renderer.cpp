@@ -87,11 +87,13 @@ static void debug_callback(GLenum const source,
 namespace aryibi::renderer {
 
 Renderer::~Renderer() {
+    ARYIBI_LOG("Deleting renderer");
     glfwTerminate();
 }
 
 Renderer::Renderer(windowing::WindowHandle _w) : window(_w), p_impl(std::make_unique<impl>()) {
     ARYIBI_ASSERT(_w.exists(), "Window handle given to renderer isn't valid!");
+    ARYIBI_LOG("Creating renderer");
 
     // Activate VSync and fix FPS
     glfwMakeContextCurrent(window.p_impl->handle);
@@ -110,7 +112,7 @@ Renderer::Renderer(windowing::WindowHandle _w) : window(_w), p_impl(std::make_un
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    constexpr const char* glsl_version = "#version 450";
+    constexpr const char* glsl_version = "#version 450 core";
     ImGui_ImplGlfw_InitForOpenGL(window.p_impl->handle, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
@@ -221,7 +223,7 @@ void Renderer::draw(DrawCmdList const& draw_commands, Framebuffer const& output_
 
         // To create the light view, we position the light as if it were a camera and
         // then invert the matrix.
-        aml::Matrix4 lightView = aml::translate(draw_commands.camera.position);
+        aml::Matrix4 lightView = aml::translate({draw_commands.camera.position.x, draw_commands.camera.position.y, 10});
         // We want the light to be rotated on the Z and X axis to make it seem there's
         // some directionality to it.
         // We rotate the light 180º in the Y axis so that it faces -X (The scene).
