@@ -24,18 +24,19 @@ layout(std140) struct PointLight {
     vec4 color;             // 16   // 0
     float radius;           // 4    // 16
     mat4 lightSpaceMatrix;  // 64   // 32
-    vec3 lightAtlasPos;     // 16   // 96
-                                    // 112
+    vec3 pos;               // 12   // 96
+    vec3 lightAtlasPos;     // 12   // 112
+                                    // 128
 };
 
 layout(std140, binding = 5) uniform Lights {
                                                                 // base // aligned
     DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHTS]; // 480  // 0
     uint directionalLightCount;                                 // 4    // 480
-    PointLight pointLights[MAX_POINT_LIGHTS];                   // 2240 // 496
-    uint pointLightCount;                                       // 4    // 2736
-    vec3 ambientLightColor;                                     // 12   // 2752
-                                                                        // 2768
+    PointLight pointLights[MAX_POINT_LIGHTS];                   // 2560 // 496
+    uint pointLightCount;                                       // 4    // 3056
+    vec3 ambientLightColor;                                     // 12   // 3072
+                                                                        // 3088
 } lights;
 
 in VS_OUT {
@@ -86,7 +87,7 @@ void main() {
     }
     for (int point_i = 0; point_i < lights.pointLightCount; ++point_i) {
         vec4 FragPosLightSpace = lights.pointLights[point_i].lightSpaceMatrix * vec4(fs_in.FragPos, 1.0);
-        vec3 light_pos = lights.pointLights[point_i].lightSpaceMatrix[3].xyz;
+        vec3 light_pos = lights.pointLights[point_i].pos;
         vec3 light_dir_vec = normalize(light_pos - fs_in.FragPos);
         // Assume our normal is always facing the camera
         vec3 this_normal = vec3(0, 0, 1);
