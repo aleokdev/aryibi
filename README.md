@@ -1,6 +1,12 @@
-# Aryibi
-Aryibi is a C++17 graphics library primarily focused on 2D graphics such as sprites. This is mostly meant
-for private projects and [arpiyi](https://github.com/alexdevteam/arpiyi), not for public use, but you are free
+
+<div align="center">
+    <img src="https://user-images.githubusercontent.com/16354904/141654563-c1243f3e-b8f1-4c6f-b23c-de4a9484070b.png" alt="Sample screenshot" title="Aryibi" width="600">
+</div>
+
+# Aryibi ![C++ Standard - 17](https://img.shields.io/static/v1?label=C%2B%2B+Standard&message=17&color=informational&logo=c%2B%2B)
+
+Aryibi is a C++ graphics library primarily focused on 2D graphics such as sprites. This is mostly meant
+for private projects and [arpiyi](https://github.com/alexdevteam/arpiyi), but you are free
 to use or fork the library.
 
 The core principle of aryibi is being generic without sacrificing simplicity. This means that **the backend
